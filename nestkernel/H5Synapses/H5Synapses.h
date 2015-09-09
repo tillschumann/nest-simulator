@@ -2,6 +2,7 @@
 #include <deque>
 #include "nmpi.h"
 #include "NESTNodeSynapse.h"
+#include <map>
 
 #include "H5SynMEMPedictor.h"
 
@@ -21,33 +22,13 @@ enum CommunicateSynapses_Status {NOCOM,SEND, RECV, SENDRECV, UNSET};
  * 
  */
 
-template<class T>
-class GIDVector: public std::vector<T> 
-{
-private:
-  int offset_;
-  
-public:
-  GIDVector(): offset_(0)
-  {}
-  
-  T& operator[] (int ix)
-  {
-    return std::vector<T>::operator[](ix+offset_);
-  }
-  
-  void setOffset(const int& offset)
-  {
-    offset_ = offset;
-  }
-};
-
 class H5Synapses
 {
 private:
-  GIDVector<char> neuron_type_;
+  //GIDVector<char> neuron_type_;
   
-  GIDVector<Coords> neurons_pos_;
+  GIDVector<NESTNodeNeuron> neurons_;
+  std::map<int,nest::index> subnetMap_;
   
   
   uint32_t numberOfNeurons;
@@ -73,7 +54,8 @@ private:
   };
   SynapseModelProperties* synmodel_props;
   
-  void CreateNeurons(const uint32_t& non);
+  void CreateNeurons();
+  void CreateSubnets();
   
   void singleConnect(const NESTNodeSynapse& synapse, nest::Node* const target_node, const nest::thread target_thread, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur);
   
@@ -86,7 +68,7 @@ private:
 public:
   H5Synapses();
   ~H5Synapses();
-  void run(const std::string& con_dir, const std::string& hdf5_coord_file);
+  void run(const std::string& con_dir, const std::string& hdf5_cell_file);
 };
 
 #endif

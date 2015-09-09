@@ -7,8 +7,9 @@
 
 #include "communicator.h"
 #include <fstream>
+#include <cstring>
 
-#define HAVE_SIONLIB 1
+//#define HAVE_SIONLIB 1
 
 #ifdef HAVE_SIONLIB
 #include <sion.h>
@@ -236,7 +237,7 @@ public:
     #endif
   }
   
-  
+  #ifdef HAVE_SION
   void writeSionLog()
   {
     const uint32_t rank = nest::Communicator::get_rank();
@@ -267,6 +268,7 @@ public:
       sw.writeVector(0,end_[thread_num]);
     }
   }
+  #endif //HAVE_SION
   
   void writeCSVLog()
   {

@@ -5,6 +5,7 @@
 #include "nmpi.h"
 
 #include "NESTNodeSynapse.h"
+#include "NESTNodeNeuron.h"
 
 #ifndef HDF5MIKE_CLASS
 #define HDF5MIKE_CLASS
@@ -23,6 +24,28 @@ struct SFile_
   }
 };
 
+template<class T>
+class GIDVector: public std::vector<T> 
+{
+private:
+  
+  
+public:
+  int offset_;
+  
+  GIDVector(): offset_(0)
+  {}
+  
+  T& operator[] (int ix)
+  {
+    return std::vector<T>::operator[](ix+offset_);
+  }
+  
+  void setOffset(const int& offset)
+  {
+    offset_ = offset;
+  }
+};
 
 class HDF5Mike
 {
@@ -45,9 +68,9 @@ private:
   
   
   hsize_t     number_datasets;
-  uint32_t number_target_neurons, number_source_neurons;
+  uint32_t number_target_neurons, number_source_neurons, number_params;
   std::vector<uint32_t> buffer_source_neurons;
-  std::vector<uint32_t> buffer_target_neurons;
+  std::vector<float> buffer_target_neurons;
   
   
   //coord file and files of synapses
@@ -100,6 +123,9 @@ public:
    */
   static int getNumberOfNeurons(const char* coord_file_name);
   
+  static void loadAllNeurons(const char* cell_file_name, const uint32_t& numberOfNeurons, GIDVector<NESTNodeNeuron>& neurons);
+  
+  static void getValueFromDataset(hid_t& cell_file_id,hid_t& memspace_id,const int& n, const int& offset_i, const char* name, const hid_t& mem_type_id, NESTNodeNeuron* ptr);
   
   /*
    * load coordinates for neurons

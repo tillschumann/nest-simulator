@@ -15,7 +15,7 @@ void outOfMem() {
   //exit(1);
 }
 
-void H5MikeReader(const std::string& con_dir, const std::string& coord_file)
+void H5MikeReader(const std::string& con_dir, const std::string& cell_file)
 {
   std::set_new_handler(outOfMem);
   
@@ -27,14 +27,14 @@ void H5MikeReader(const std::string& con_dir, const std::string& coord_file)
   
   std::cout << "H5MikeReader(";
   std::cout << "con_dir=" << con_dir;
-  std::cout << ", coord_file=" << coord_file;
+  std::cout << ", cell_file=" << cell_file;
   std::cout << ") with " << num_threads << " threads" << std::endl;
   
   //if (hdf5files.size()>4)
   //  hdf5files.resize(4);
   
   H5Synapses h5Synapses;
-  h5Synapses.run(con_dir, coord_file);
+  h5Synapses.run(con_dir, cell_file);
   
   omp_set_dynamic(false);
   omp_set_num_threads(1);

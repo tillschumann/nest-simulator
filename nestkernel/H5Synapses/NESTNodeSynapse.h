@@ -28,6 +28,11 @@ public:
     unsigned int target_neuron_;
     unsigned int node_id_;
     
+    double delay;
+    double weight;
+    double U0;
+    double TauRec;
+    double TauFac;
     
     
     
@@ -37,6 +42,8 @@ public:
     
     void serialize(unsigned int* buf);
     void deserialize(unsigned int* buf);
+    
+    void integrateOffset(const int& offset);
     
     bool operator<(const NESTNodeSynapse& rhs) const;
 };

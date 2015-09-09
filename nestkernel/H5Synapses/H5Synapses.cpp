@@ -25,48 +25,130 @@
 #include <spi/include/kernel/memory.h>
 #endif
 
+#include <algorithm>
+
 
 #define _DEBUG_MODE 1
+
+
+void H5Synapses::CreateSubnets()
+{
+  
+  //find all subnets
+  GIDVector<int> unique_subnets;
+  for (int i=0; i<neurons_.size(); i++)
+  {
+    if (!(std::find(unique_subnets.begin(), unique_subnets.end(), neurons_[i].subnet_) != unique_subnets.end()))
+    {
+      unique_subnets.push_back(neurons_[i].subnet_);
+    }
+  }
+  //del 0 subnet, because 0 subnet means main network
+  int n_newSubnets = unique_subnets.size();
+  if (std::find(unique_subnets.begin(), unique_subnets.end(), 0)!= unique_subnets.end())
+    n_newSubnets--;
+  
+  //create subnets:
+  const std::string sub_modname = "subnet";
+  const Token sub_model = nest::NestModule::get_network().get_modeldict().lookup(sub_modname);
+  const nest::index sub_model_id = static_cast<nest::index>(sub_model);  
+  const long sub_last_node_id = nest::NestModule::get_network().add_node(sub_model_id, n_newSubnets);
+  
+  //fill subnet map with nest ids
+  nest::index first_sub = sub_last_node_id - n_newSubnets+1;
+  for (int i=0; i<unique_subnets.size(); i++) {
+    if (unique_subnets[i]==0) {
+      subnetMap_[unique_subnets[i]] = 0;
+    }
+    else {
+      subnetMap_[unique_subnets[i]] = first_sub;
+      first_sub++;
+    }
+    
+  }
+}
 
 /*
  * 
  * 
  */
-void H5Synapses::CreateNeurons(const uint32_t& non)
-{
-  // check if possible
-  // 
+void H5Synapses::CreateNeurons()
+{  
+  const uint32_t non = neurons_.size();
+  
+  CreateSubnets();
+ 
   if (memPredictor.preNESTCreate(non)==0)
   {
     const std::string modname = "aeif_cond_exp";
     const Token model = nest::NestModule::get_network().get_modeldict().lookup(modname);      
     // create
     const nest::index model_id = static_cast<nest::index>(model);
-  
-    nest::NestModule::get_network().add_node(model_id, non); 
-  
-    neuron_type_.resize(non, 0);
     
-    // access NEST random generator
-    librandom::RngPtr grng = nest::NestModule::get_network().get_grng();
-    librandom::PoissonRandomDev poisson(grng, 0.16251892949777494);
+    //jump to main network
+    nest::index current_subnet=0;
+    nest::NestModule::get_network().go_to(current_subnet);
+  
+    int last_index=0;
+    for (int i=0;i<non;i++) {
+      if (current_subnet!=neurons_[i].subnet_) {
+	if (i>last_index) // only the case if first neuron is not 0 subnet
+	  nest::NestModule::get_network().add_node(model_id, i-last_index);
+	current_subnet=neurons_[i].subnet_;
+	last_index=i;
+	
+	//jump to subnetwork
+	nest::NestModule::get_network().go_to(subnetMap_[neurons_[i].subnet_]);
+      }
+    }    
+    nest::index neuron_id = nest::NestModule::get_network().add_node(model_id, non-last_index);
     
-    uint32_t i=(uint32_t)poisson(); // +1 NEST offset
-    while (i<non)
-    {
-      neuron_type_[i]=1;
-      i+=1+(uint32_t)poisson(); 
+    
+    //nest::index neuron_id = nest::NestModule::get_network().add_node(model_id, non);
+    
+    neurons_.setOffset(-1*(neuron_id-non+1));
+    
+    DictionaryDatum d = DictionaryDatum( new Dictionary );
+    def< double >( d, nest::names::C_m, 0. );
+    def< double >( d, nest::names::Delta_T, 0. );
+    def< double >( d, nest::names::E_L, 0. );
+    def< double >( d, nest::names::E_ex, 0. );
+    def< double >( d, nest::names::E_in, 0. );
+    def< double >( d, nest::names::V_peak, 0. );
+    def< double >( d, nest::names::V_reset, 0. );
+    def< double >( d, nest::names::V_th, 0. );
+    def< double >( d, nest::names::a, 0. );
+    def< double >( d, nest::names::b, 0. );
+    
+    //not give:
+    //def< double >( d, names::t_ref, t_ref_ );
+    //def< double >( d, names::g_L, g_L );
+    //def< double >( d, names::tau_syn_ex, tau_syn_ex );
+    //def< double >( d, names::tau_syn_in, tau_syn_in );
+    //def< double >( d, names::tau_w, tau_w );
+    //def< double >( d, names::I_e, I_e );
+    //def< double >( d, names::gsl_error_tol, gsl_error_tol );
+
+    for (int i=0;i<non;i++) {
+      nest::Node* node = nest::NestModule::get_network().get_node(neuron_id);
+      if (nest::NestModule::get_network().is_local_node(node))
+      {
+	( *d )[ nest::names::C_m ] = static_cast<double>(neurons_[neuron_id].C_m_);
+	( *d )[ nest::names::Delta_T ] = static_cast<double>(neurons_[neuron_id].Delta_T_);
+	( *d )[ nest::names::E_L ] = static_cast<double>(neurons_[neuron_id].E_L_);
+	( *d )[ nest::names::E_ex ] = static_cast<double>(neurons_[neuron_id].E_ex_);
+	( *d )[ nest::names::E_in ] = static_cast<double>(neurons_[neuron_id].E_in_);
+	( *d )[ nest::names::V_peak ] = static_cast<double>(neurons_[neuron_id].V_peak_);
+	( *d )[ nest::names::V_reset ] = static_cast<double>(neurons_[neuron_id].V_reset_);
+	( *d )[ nest::names::V_th ] = static_cast<double>(neurons_[neuron_id].V_th_);
+	( *d )[ nest::names::a ] = static_cast<double>(neurons_[neuron_id].a_);
+	( *d )[ nest::names::b ] = static_cast<double>(neurons_[neuron_id].b_);
+	node->set_status(d);
+      }
+      neuron_id--;
     }
-    
-    uint32_t non_ex=0;
-    uint32_t non_in=0;
-    for (i=0; i<non; i++)
-      if (neuron_type_[i]==1)
-	non_ex++;
-      else
-	non_in++;
       
-    std::cout << "CreateNeurons \trank= " << nest::Communicator::get_rank() << "\tnon_ex=" << non_ex << "\tnon_in=" << non_in << "\n";  
+    std::cout << "CreateNeurons \trank= " << nest::Communicator::get_rank() << "\n";  
   }
 }
 
@@ -79,30 +161,39 @@ void H5Synapses::singleConnect(const NESTNodeSynapse& synapse, nest::Node* const
   if (nest::NestModule::get_network().is_local_node(target_node))
   {
     // calculate delay of synapse:
-    Coords& s = neurons_pos_[source];
-    Coords& t = neurons_pos_[target_node->get_gid()];
+
+    DictionaryDatum d = DictionaryDatum( new Dictionary );
     
-    const double distance = sqrt ( (s.x_-t.x_)*(s.x_-t.x_) + (s.y_-t.y_)*(s.y_-t.y_) + (s.z_-t.z_)*(s.z_-t.z_) );
+    def< double_t >( d, nest::names::delay, synapse.delay );
+    def< double_t >( d, nest::names::weight, synapse.weight );
+    //def< double_t >( d, nest::names::dU, U_ );
+    def< double_t >( d, nest::names::dU, synapse.U0 );
+    def< double_t >( d, nest::names::tau_rec, synapse.TauRec );
+    def< double_t >( d, nest::names::tau_fac, synapse.TauFac );
+    //def< double_t >( d, nest::names::x, x_ );
     
     //nest::index synmodel_id;
     
     //set synapse type and check for delay boundary
     
-      // current selection of synapse is based on source neuron
-      SynapseModelProperties& synmodel_prop = synmodel_props[neuron_type_[source]];
-         
-      //if (target_thread != section_ptr)
-	//std::cout << "ConnectNeurons thread Ouups!!" << "\n";
-      
-      nestio::Stopwatch::timestamp_t begin= nestio::Stopwatch::get_timestamp();
+    // current selection of synapse is based on source neuron
+    SynapseModelProperties& synmodel_prop = synmodel_props[0]; //
+	
+    //if (target_thread != section_ptr)
+      //std::cout << "ConnectNeurons thread Ouups!!" << "\n";
     
-      nest::NestModule::get_network().connect(source, target_node, target_thread, synmodel_prop.synmodel_id, synmodel_prop.get_delay_from_distance(distance));
+    nestio::Stopwatch::timestamp_t begin= nestio::Stopwatch::get_timestamp();
+  
+    
+    bool success = nest::NestModule::get_network().connect(source, target_node->get_gid(), d, synmodel_prop.synmodel_id);    
+    
+    //( *d )[ nest::names::delay ] = synapse.delay;
+    
+    begin = nestio::Stopwatch::get_timestamp() - begin;
+    if (success)
       n_conSynapses++;
-      
-     
-      begin = nestio::Stopwatch::get_timestamp() - begin;
-      if (begin > 0)
-	connect_dur+= begin;
+    if (begin > 0)
+      connect_dur+= begin;
   }
   else
   {
@@ -194,14 +285,14 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
     rdispls[i]=-999;
   }
   
-  uint32_t* send_buffer = new uint32_t[synapses.size()*3];
+  uint32_t* send_buffer = new uint32_t[synapses.size()*13];
   
   uint32_t* ptr_send_buffer=send_buffer;
   for (uint32_t i=0; i<synapses.size(); i++) {
     NESTNodeSynapse& syn = synapses[i];
-    sendcounts[syn.node_id_]+=3;
+    sendcounts[syn.node_id_]+=13;
     syn.serialize(ptr_send_buffer);
-    ptr_send_buffer+=3;
+    ptr_send_buffer+=13;
   }
   
   tracelogger.begin(0, "mpi wait");
@@ -215,7 +306,7 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
     rdispls[i] = rdispls[i-1] + recvcounts[i-1];
   }  
   
-  const int32_t recv_synpases_count = rdispls[num_processes]/3;
+  const int32_t recv_synpases_count = rdispls[num_processes]/13;
   
   
   //implement check if recv counts does not fit in memory??
@@ -236,7 +327,7 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
   for (uint32_t i=0; i<synapses.size(); i++) {
     NESTNodeSynapse& syn = synapses[i];
     syn.deserialize(ptr_recv_buffer);
-    ptr_recv_buffer+=3;
+    ptr_recv_buffer+=13;
   }
   delete[] recvbuf;
 
@@ -244,7 +335,7 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
     return SENDRECV;
   else if (sdispls[num_processes]>0)
     return SEND;
-  else if (rdispls[num_processes]>0)
+  else if (rdispls[num_processes-1]>0)
     return RECV;
   else
     return NOCOM;
@@ -286,7 +377,7 @@ void H5Synapses::freeSynapses(std::deque<NESTNodeSynapse>& synapses)
   synapses.clear();
 }
 
-void H5Synapses::run(const std::string& con_dir, const std::string& hdf5_coord_file)
+void H5Synapses::run(const std::string& con_dir, const std::string& hdf5_cell_file)
 {
   int rank = nest::Communicator::get_rank();
   int size = nest::Communicator::get_num_processes();
@@ -297,8 +388,10 @@ void H5Synapses::run(const std::string& con_dir, const std::string& hdf5_coord_f
     
   TraceLogger::print_mem("NEST base"); 
   if (rank==0) {
-     numberOfNeurons= HDF5Mike::getNumberOfNeurons(hdf5_coord_file.c_str());
-     HDF5Mike::loadAllNeuronCoords(hdf5_coord_file.c_str(), numberOfNeurons, neurons_pos_);
+     numberOfNeurons= HDF5Mike::getNumberOfNeurons(hdf5_cell_file.c_str());
+     //HDF5Mike::loadAllNeuronCoords(hdf5_coord_file.c_str(), numberOfNeurons, neurons_pos_);
+     
+     HDF5Mike::loadAllNeurons(hdf5_cell_file.c_str(),numberOfNeurons, neurons_);
   }
   
   MPI_Bcast(&numberOfNeurons, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -306,15 +399,15 @@ void H5Synapses::run(const std::string& con_dir, const std::string& hdf5_coord_f
   
   
   if (rank>0)
-    neurons_pos_.resize(numberOfNeurons); 
+    neurons_.resize(numberOfNeurons); 
   
-  MPI_Bcast(&neurons_pos_[0], numberOfNeurons*sizeof(Coords), MPI_BYTE, 0, MPI_COMM_WORLD); 
-  TraceLogger::print_mem("with neuron pos");
+  MPI_Bcast(&neurons_[0], numberOfNeurons*sizeof(NESTNodeNeuron), MPI_BYTE, 0, MPI_COMM_WORLD); 
+  TraceLogger::print_mem("with neuron parameters");
   
   // Create Neurons
-  CreateNeurons(numberOfNeurons);
-  neurons_pos_.setOffset(-1);
-  neuron_type_.setOffset(-1);
+  CreateNeurons();
+  //neurons_.setOffset(-1);
+  //neuron_type_.setOffset(-1);
   
   // oberserver variables for validation
   // sum over all after alg has to be equal
@@ -344,6 +437,9 @@ void H5Synapses::run(const std::string& con_dir, const std::string& hdf5_coord_f
     tracelogger.end(0,"loadSynapses");
       
     tracelogger.begin(0,"sort");
+    for (int i=0; i< synapses.size(); i++)
+      synapses[i].integrateOffset(-1*neurons_.offset_-1); // inverse NEST offset + csaba offset (offset to 0-indicies)
+    
     std::sort(synapses.begin(), synapses.end());
     tracelogger.end(0,"sort");
     

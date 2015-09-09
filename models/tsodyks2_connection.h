@@ -186,7 +186,7 @@ inline void
 Tsodyks2Connection< targetidentifierT >::send( Event& e,
   thread t,
   double_t t_lastspike,
-  const CommonSynapseProperties& )
+  const CommonSynapseProperties& ) 
 {
   Node* target = get_target( t );
 

@@ -33,7 +33,6 @@ public:
   
   std::string toString();
   
-  
   static H5SynMEMPredictor* instance;
   
 private:
