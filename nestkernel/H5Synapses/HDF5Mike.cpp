@@ -318,11 +318,11 @@ void HDF5Mike::iterateOverSynapsesFromFiles(std::deque<NESTNodeSynapse>& synapse
       for (;i_source<number_source_neurons; i_source++) {   // iteration over all synapses
 	for (;i_target<number_target_neurons; i_target++) {
 	  NESTNodeSynapse syn(buffer_source_neurons[i_source], *reinterpret_cast<unsigned int*>(&buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params]));
-	  syn.delay=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+1];
-	  syn.weight=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+2];
-	  syn.U0=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+3];
-	  syn.TauRec=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+4];
-	  syn.TauFac=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+5];
+	  syn.prop_values [0]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+1];
+	  syn.prop_values [1]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+2];
+	  syn.prop_values [2]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+3];
+	  syn.prop_values [3]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+4];
+	  syn.prop_values [4]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+5];
 	  synapses.push_back(syn); // +1 because of NEST id offset
 	  new_synapses++;
 	  if (new_synapses>=number_of_synapses)

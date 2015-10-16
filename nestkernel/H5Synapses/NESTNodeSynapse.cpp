@@ -4,7 +4,7 @@
 
 #include "communicator.h"
 
-NESTNodeSynapse::NESTNodeSynapse()
+NESTNodeSynapse::NESTNodeSynapse(): num_used_prop_values_(5)
 {}
 NESTNodeSynapse::NESTNodeSynapse(const unsigned int& source_neuron, const unsigned int& target_neuron)
 {
@@ -29,16 +29,7 @@ void NESTNodeSynapse::serialize(unsigned int* buf)
   buf[0] = source_neuron_;
   buf[1] = target_neuron_;
   buf[2] = node_id_;
-  buf[3] = *reinterpret_cast<int*>(&delay);
-  buf[4] = *(reinterpret_cast<int*>(&delay)+1);
-  buf[5] = *reinterpret_cast<int*>(&weight);
-  buf[6] = *(reinterpret_cast<int*>(&weight)+1);
-  buf[7] = *reinterpret_cast<int*>(&U0);
-  buf[8] = *(reinterpret_cast<int*>(&U0)+1);
-  buf[9] = *reinterpret_cast<int*>(&TauRec);
-  buf[10] = *(reinterpret_cast<int*>(&TauRec)+1);
-  buf[11] = *reinterpret_cast<int*>(&TauFac);
-  buf[12] = *(reinterpret_cast<int*>(&TauFac)+1);
+  memcpy(&buf[3], &prop_values_[0], num_used_prop_values_*sizeof(double));
 }
 void NESTNodeSynapse::deserialize(unsigned int* buf)
 {
@@ -46,11 +37,7 @@ void NESTNodeSynapse::deserialize(unsigned int* buf)
   target_neuron_ = buf[1];
   node_id_ = buf[2];
   
-  delay = *reinterpret_cast<double*>(&buf[3]);
-  weight = *reinterpret_cast<double*>(&buf[5]);
-  U0 = *reinterpret_cast<double*>(&buf[7]);
-  TauRec = *reinterpret_cast<double*>(&buf[9]);
-  TauFac = *reinterpret_cast<double*>(&buf[11]);
+  memcpy(&prop_values_[0], &buf[3], num_used_prop_values_*sizeof(double));
 }
 bool NESTNodeSynapse::operator<(const NESTNodeSynapse& rhs) const
 {

@@ -1,9 +1,8 @@
 #include <iostream>
 #include "H5Synapses/H5Synapses.h"
-#include "H5Synapses/HDF5Mike.h"
 #include <new>
 
-void outOfMem() {  
+/*void outOfMem() {  
 #pragma omp single
   {
     std::cerr << "Out of memory\t";
@@ -13,11 +12,11 @@ void outOfMem() {
   throw std::bad_alloc();
    
   //exit(1);
-}
+}*/
 
-void H5MikeReader(const std::string& con_dir, const std::string& cell_file)
+void H5MikeReader(const std::string& con_dir, const std::string& cell_file, const int& nest_offset, const Name& synmodel_name, TokenArray synparam_names)
 {
-  std::set_new_handler(outOfMem);
+  //std::set_new_handler(outOfMem);
   
   //omp_set_dynamic(true);
   
@@ -33,8 +32,8 @@ void H5MikeReader(const std::string& con_dir, const std::string& cell_file)
   //if (hdf5files.size()>4)
   //  hdf5files.resize(4);
   
-  H5Synapses h5Synapses;
-  h5Synapses.run(con_dir, cell_file);
+  H5Synapses h5Synapses(synmodel_name, synparam_names);
+  h5Synapses.run(con_dir);
   
   omp_set_dynamic(false);
   omp_set_num_threads(1);

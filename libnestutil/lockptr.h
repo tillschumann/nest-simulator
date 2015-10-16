@@ -117,8 +117,9 @@ class lockPTR
       assert( number_of_references == 0 ); // This will invalidate the still
                                            // existing pointer!
       assert( !locked );
-      if ( ( pointee != NULL ) && deletable && ( !locked ) )
+      if ( ( pointee != NULL ) && deletable && ( !locked ) ) {
         delete pointee;
+      }
     }
 
     D*

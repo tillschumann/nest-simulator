@@ -944,22 +944,28 @@ NestModule::Connect_i_i_d_d_lFunction::execute( SLIInterpreter* i ) const
 
 void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 {
-	//i->assert_stack_load(3);
-	 
-	//index source = getValue<long>(i->OStack.pick(2));
-	const std::string con_dir = getValue<std::string>(i->OStack.pick(1));
-	const std::string coord_file = getValue<std::string>(i->OStack.pick(0));
+  //i->assert_stack_load(3);
+    
+  //index source = getValue<long>(i->OStack.pick(2));
+  
+  const int neuron_offset = getValue< std::string >( i->OStack.pick( 4 ) );
+  const Name synmodel_name = getValue< std::string >( i->OStack.pick( 3 ) );
+  TokenArray synparam_names = getValue< TokenArray >( i->OStack.pick( 2 ) );
+  const std::string con_dir = getValue<std::string>(i->OStack.pick(1));
+  const std::string coord_file = getValue<std::string>(i->OStack.pick(0));
+  
+  
 
 
 
-	//get_network().divergent_connect(source, params,synmodel_id);
-	  // dict access control only if we actually made a connection
+  //get_network().divergent_connect(source, params,synmodel_id);
+    // dict access control only if we actually made a connection
 
 
-	H5MikeReader(con_dir, coord_file);
+  H5MikeReader(con_dir, coord_file, synmodel_name, synparam_names);
 
-	i->OStack.pop(2);
-	i->EStack.pop();
+  i->OStack.pop(2);
+  i->EStack.pop();
 }
 
 // Connect for gid gid params syn_model

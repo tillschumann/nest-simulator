@@ -6,7 +6,9 @@
 
 #include "H5SynMEMPedictor.h"
 
-#include "HDF5Mike.h"
+#include "H5SynapseLoader.h"
+
+
 
 #ifndef H5Synapses_CLASS
 #define H5Synapses_CLASS
@@ -27,17 +29,24 @@ class H5Synapses
 private:
   //GIDVector<char> neuron_type_;
   
-  GIDVector<NESTNodeNeuron> neurons_;
-  std::map<int,nest::index> subnetMap_;
+  omp_lock_t tokenLock;
   
   
-  uint32_t numberOfNeurons;
+  //GIDVector<NESTNodeNeuron> neurons_;
+  //std::map<int,nest::index> subnetMap_;
+  
+  nest::index synmodel_id_;
+  
+  uint32_t neuron_id_offset_;
+  //uint32_t numberOfNeurons;
   
   TraceLogger tracelogger;
   
   H5SynMEMPredictor memPredictor;
   
-  struct SynapseModelProperties
+  NESTSynapseList synapses_;
+  
+  /*struct SynapseModelProperties
   {
     nest::index synmodel_id; // NEST reference
     double min_delay; // 
@@ -52,23 +61,23 @@ private:
 	return min_delay;
     }
   };
-  SynapseModelProperties* synmodel_props;
+  SynapseModelProperties* synmodel_props;*/
   
-  void CreateNeurons();
-  void CreateSubnets();
+  //void CreateNeurons();
+  //void CreateSubnets();
   
-  void singleConnect(const NESTNodeSynapse& synapse, nest::Node* const target_node, const nest::thread target_thread, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur);
+  void singleConnect(nest::Node* const target_node, const nest::thread target_thread, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur);
   
-  void ConnectNeurons(const std::deque<NESTNodeSynapse>& synapses, uint64_t& n_conSynapses);
-  void threadConnectNeurons(const std::deque<NESTNodeSynapse>& synapses, uint64_t& n_conSynapses);
+  void ConnectNeurons(uint64_t& n_conSynapses);
+  void threadConnectNeurons(uint64_t& n_conSynapses);
   
-  void freeSynapses(std::deque<NESTNodeSynapse>& synapses);
-  CommunicateSynapses_Status CommunicateSynapses(std::deque<NESTNodeSynapse>& synapses);
+  void freeSynapses();
+  CommunicateSynapses_Status CommunicateSynapses();
   
 public:
-  H5Synapses();
+  H5Synapses(const Name& synmodel_name, TokenArray synparam_names);
   ~H5Synapses();
-  void run(const std::string& con_dir, const std::string& hdf5_cell_file);
+  void run(const std::string& syn_filename);
 };
 
 #endif

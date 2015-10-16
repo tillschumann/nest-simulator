@@ -25,10 +25,10 @@ struct SFile_
 };
 
 template<class T>
-class GIDVector: public std::vector<T> 
+class GIDVector  
 {
 private:
-  
+  std::vector<T> vec_;
   
 public:
   int offset_;
@@ -38,7 +38,17 @@ public:
   
   T& operator[] (int ix)
   {
-    return std::vector<T>::operator[](ix+offset_);
+    return vec_[ix+offset_];
+  }
+  
+  int size() const
+  {
+    return vec_.size();
+  }
+  
+  void resize(const int& n)
+  {
+    vec_.resize(n);
   }
   
   void setOffset(const int& offset)
