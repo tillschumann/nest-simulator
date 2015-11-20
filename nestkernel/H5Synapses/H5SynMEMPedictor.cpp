@@ -15,24 +15,7 @@ H5SynMEMPredictor::H5SynMEMPredictor(): predicted_mem_used(0), number_of_neurons
 }
 
 H5SynMEMPredictor::~H5SynMEMPredictor()
-{
-  #ifdef _DEBUG_MODE  
-  
-  
-  
-  /* write to file */
-  
-  
-  
-  
-  
-  /* close file */
-  
-
-  
-  
-  #endif //_DEBUG_MODE
-}
+{}
 
 void H5SynMEMPredictor::updateMEM()
 {

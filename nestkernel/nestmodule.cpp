@@ -45,7 +45,8 @@
 #include "genericmodel.h"
 #include "conn_builder.h"
 
-#include "H5MikeReader.cpp"
+#include "H5Synapses/H5Synapses.h"
+#include "H5Synapses/H5Neurons.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -942,29 +943,91 @@ NestModule::Connect_i_i_d_d_lFunction::execute( SLIInterpreter* i ) const
 }
 
 
+/* BeginDocumentation
+   Name: HDF5MikeLoad_s_s - Import tll synapses hdf5 file
+
+   Synopsis:
+   subnet_column param_columns model file  H5NeuronCsX_s_a_s -> -
+
+   neuron_offset    - specify the offset of the neuron ids (NEST circuit & hdf5 file)
+   param_names    - names of compound datatype columns in syn dataset inside hdf5 file which specify the synpase parameters
+   model          - synapse model
+   file             - path to hdf5 file
+
+   Description:
+   Use the CsX neuron hdf5 file import functionallity
+
+   The datasets in the hdf5 file have to be of same length.
+   Each entry in the dataset specifies one neuron.
+   The name of the datasets have to be the same as the parameter names of the neuron parameters.
+   (Names depense on the selected neuron model)
+   
+   Neurons are grouped together to subnets based on their value in the subnet_dataset dataset.
+
+   Author: Till Schumann
+   FirstVersion: Oktober 2015
+   SeeAlso: Connect, H5NeuronCsX_s_a_s
+*/
 void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 {
-  //i->assert_stack_load(3);
-    
-  //index source = getValue<long>(i->OStack.pick(2));
+  i->assert_stack_load(4);
   
-  const int neuron_offset = getValue< std::string >( i->OStack.pick( 4 ) );
-  const Name synmodel_name = getValue< std::string >( i->OStack.pick( 3 ) );
+  index neuron_offset = getValue< long >( i->OStack.pick( 3 ) );
   TokenArray synparam_names = getValue< TokenArray >( i->OStack.pick( 2 ) );
-  const std::string con_dir = getValue<std::string>(i->OStack.pick(1));
-  const std::string coord_file = getValue<std::string>(i->OStack.pick(0));
+  const Name synmodel_name = getValue< std::string >( i->OStack.pick( 1 ) );
+  const std::string syn_file = getValue<std::string>(i->OStack.pick(0));
+
+  const int& num_threads = nest::NestModule::get_network().get_num_threads();
+  omp_set_num_threads(num_threads);
   
+  H5Synapses h5Synapses(neuron_offset,synmodel_name, synparam_names);
+  h5Synapses.import(syn_file);
   
+  omp_set_dynamic(false);
+  omp_set_num_threads(1);
 
+  i->OStack.pop(4);
+  i->EStack.pop();
+}
 
+/* BeginDocumentation
+   Name: H5NeuronCsX_s_a_s - Import CsX neuron hdf5 file
 
-  //get_network().divergent_connect(source, params,synmodel_id);
-    // dict access control only if we actually made a connection
+   Synopsis:
+   subnet_column param_columns model file  H5NeuronCsX_s_a_s -> -
 
+   subnet_dataset    - dataset in hdf5 file which specifies the subnet
+   param_datasets    - datasets in hdf5 file which specify the neuron parameters
+   model            - neuron model
+   file             - path to hdf5 file
 
-  H5MikeReader(con_dir, coord_file, synmodel_name, synparam_names);
+   Description:
+   Use the CsX neuron hdf5 file import functionallity
 
-  i->OStack.pop(2);
+   The datasets in the hdf5 file have to be of same length.
+   Each entry in the dataset specifies one neuron.
+   The name of the datasets have to be the same as the parameter names of the neuron parameters.
+   (Names depense on the selected neuron model)
+   
+   Neurons are grouped together to subnets based on their value in the subnet_dataset dataset.
+
+   Author: Till Schumann
+   FirstVersion: Oktober 2015
+   SeeAlso: Connect, HDF5MikeLoad_s_s
+*/
+void NestModule::H5NeuronCsX_s_a_sFunction::execute(SLIInterpreter *i) const
+{
+  i->assert_stack_load(4);
+  
+  const Name subnet_name = getValue< std::string >( i->OStack.pick( 3 ) );
+  TokenArray param_names = getValue< TokenArray >( i->OStack.pick( 2 ) );
+  const Name model_name = getValue< std::string >( i->OStack.pick( 1 ) );
+  const std::string neuron_file = getValue<std::string>(i->OStack.pick(0));
+
+  H5Neurons h5neurons(model_name, param_names, subnet_name);
+  h5neurons.import(neuron_file);
+
+  i->OStack.pop(4);
   i->EStack.pop();
 }
 
@@ -2059,6 +2122,8 @@ NestModule::init( SLIInterpreter* i )
     &rconvergentconnect_ia_ia_ia_daa_daa_b_b_lfunction );
 
   i->createcommand("HDF5MikeLoad_s_s", &hdf5mikeload_s_sfunction);
+  i->createcommand("H5NeuronCsX_s_a_s", &h5neuroncsx_s_a_sfunction);
+  
 
   i->createcommand( "ResetNetwork", &resetnetworkfunction );
   i->createcommand( "ResetKernel", &resetkernelfunction );

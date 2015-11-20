@@ -14,27 +14,12 @@
   //exit(1);
 }*/
 
-void H5MikeReader(const std::string& con_dir, const std::string& cell_file, const int& nest_offset, const Name& synmodel_name, TokenArray synparam_names)
+void H5MikeReader(const std::string& con_dir, const std::string& cell_file, nest::index nest_offset, const Name& synmodel_name, TokenArray synparam_names)
 {
   //std::set_new_handler(outOfMem);
   
   //omp_set_dynamic(true);
   
   
-  const int& num_threads = nest::NestModule::get_network().get_num_threads();
-  omp_set_num_threads(num_threads);
   
-  std::cout << "H5MikeReader(";
-  std::cout << "con_dir=" << con_dir;
-  std::cout << ", cell_file=" << cell_file;
-  std::cout << ") with " << num_threads << " threads" << std::endl;
-  
-  //if (hdf5files.size()>4)
-  //  hdf5files.resize(4);
-  
-  H5Synapses h5Synapses(synmodel_name, synparam_names);
-  h5Synapses.run(con_dir);
-  
-  omp_set_dynamic(false);
-  omp_set_num_threads(1);
 };

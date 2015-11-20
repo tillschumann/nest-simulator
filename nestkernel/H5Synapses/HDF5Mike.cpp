@@ -39,14 +39,14 @@ int HDF5Mike::getdir (const std::string dir, std::vector<SFile_>& files)
     return 0;
 }
 
-int HDF5Mike::getNumberOfNeurons(const char* coord_file_name)
+uint64_t HDF5Mike::getNumberOfNeurons(const char* coord_file_name)
 {  
   herr_t      coord_status_;
   
   hid_t coord_file_id_ = H5Fopen (coord_file_name, H5F_ACC_RDONLY, H5P_DEFAULT);
   hid_t dset = H5Dopen2 (coord_file_id_, "x", H5P_DEFAULT);
   
-  hsize_t dims[2];
+  hsize_t dims[1];
   hid_t dspace = H5Dget_space(dset);
   H5Sget_simple_extent_dims(dspace, dims, NULL);
   
@@ -60,7 +60,7 @@ int HDF5Mike::getNumberOfNeurons(const char* coord_file_name)
 }
 
 
-void HDF5Mike::loadAllNeuronCoords(const char* coord_file_name, const uint32_t& numberOfNeurons, std::vector<Coords>& neurons_pos)
+/*void HDF5Mike::loadAllNeuronCoords(const char* coord_file_name, const uint32_t& numberOfNeurons, std::vector<Coords>& neurons_pos)
 {
   
   const uint32_t n = numberOfNeurons;
@@ -136,7 +136,7 @@ void HDF5Mike::loadAllNeuronCoords(const char* coord_file_name, const uint32_t& 
   //H5Tclose(VCoordsDataType);
   coord_status_ = H5Sclose (memspace_id);
   coord_status_ = H5Fclose (coord_file_id_);
-}
+}*/
 
 void HDF5Mike::loadSourceNeuonIds(const hid_t& dataset_id, const uint32_t& n)
 {
@@ -318,11 +318,11 @@ void HDF5Mike::iterateOverSynapsesFromFiles(std::deque<NESTNodeSynapse>& synapse
       for (;i_source<number_source_neurons; i_source++) {   // iteration over all synapses
 	for (;i_target<number_target_neurons; i_target++) {
 	  NESTNodeSynapse syn(buffer_source_neurons[i_source], *reinterpret_cast<unsigned int*>(&buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params]));
-	  syn.prop_values [0]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+1];
-	  syn.prop_values [1]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+2];
-	  syn.prop_values [2]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+3];
-	  syn.prop_values [3]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+4];
-	  syn.prop_values [4]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+5];
+	  syn.prop_values_ [0]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+1];
+	  syn.prop_values_ [1]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+2];
+	  syn.prop_values_ [2]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+3];
+	  syn.prop_values_ [3]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+4];
+	  syn.prop_values_ [4]=	buffer_target_neurons[(i_source*number_target_neurons+i_target)*number_params+5];
 	  synapses.push_back(syn); // +1 because of NEST id offset
 	  new_synapses++;
 	  if (new_synapses>=number_of_synapses)
@@ -422,9 +422,9 @@ void HDF5Mike::getValueFromDataset(hid_t& cell_file_id,hid_t& memspace_id,const 
   H5Dclose (dset);
 }
 
-void HDF5Mike::loadAllNeurons(const char* cell_file_name, const uint32_t& numberOfNeurons, GIDVector<NESTNodeNeuron>& neurons)
+void HDF5Mike::loadAllNeurons(const char* cell_file_name, const uint64_t& numberOfNeurons, NESTNeuronList& neurons)
 {
-  const uint32_t n = numberOfNeurons;
+  const uint64_t n = numberOfNeurons;
   neurons.resize(n);
 
   herr_t      coord_status_;
@@ -432,29 +432,106 @@ void HDF5Mike::loadAllNeurons(const char* cell_file_name, const uint32_t& number
   // target neuron ids are based on neuron_id MOD numberOfNodes:
   // So the target neuron ids are: Node_id, Node_id+numberOfNodes, Node_id+2*numberOfNodes, ..
   
-  hsize_t count[2]  = {n*14,1}; 
-  
+  hsize_t count[1]  = {n}; 
     
   hid_t cell_file_id = H5Fopen (cell_file_name, H5F_ACC_RDONLY, H5P_DEFAULT);
-  hid_t memspace_id = H5Screate_simple (2, count, NULL); 
+  hid_t memspace_id = H5Screate_simple (1, count, NULL); 
   
-  getValueFromDataset(cell_file_id,memspace_id,n,0,"C_m",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,1,"Delta_T",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,2,"E_L",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,3,"E_ex",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,4,"E_in",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,5,"V_peak",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,6,"V_reset",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,7,"V_th",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,8,"a",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,9,"b",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,10,"x",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,11,"y",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,12,"z",H5T_NATIVE_FLOAT, &(neurons[0]));
-  getValueFromDataset(cell_file_id,memspace_id,n,13,"subnet",H5T_NATIVE_INT, &(neurons[0]));
+  std::vector< float > buffer_flt(n);
+  for (int i=0; i< neurons.prop_names.size(); i++) {
+    hid_t dset = H5Dopen2 (cell_file_id, neurons.prop_names[i].c_str(), H5P_DEFAULT);
+    H5Dread (dset, H5T_NATIVE_FLOAT, memspace_id, H5S_ALL, H5P_DEFAULT, &buffer_flt[0]);
+    H5Dclose (dset);
+    
+    for (int j=0;j<n;j++)
+      neurons[j].prop_values_[i] = buffer_flt[j];
+    
+    std::cout << "Prop values: " << neurons.prop_names[i] << " done" << std::endl;
+  }
+  
+  std::vector< int > buffer_int(n);
+  if (neurons.with_subnet) {
+    hid_t dset = H5Dopen2 (cell_file_id, neurons.subnet_name.c_str(), H5P_DEFAULT);
+    H5Dread (dset, H5T_NATIVE_INT, memspace_id, H5S_ALL, H5P_DEFAULT, &buffer_int[0]);
+    H5Dclose (dset);
+    
+    for (int j=0;j<n;j++)
+      neurons[j].subnet_ = buffer_int[j];
+  }
 
   
   //H5Tclose(VCoordsDataType);
+  coord_status_ = H5Sclose (memspace_id);
+  coord_status_ = H5Fclose (cell_file_id);
+}
+
+void HDF5Mike::loadLocalNeurons(const char* cell_file_name, const uint64_t& numberOfNeurons, NESTNeuronList& neurons, const int mod_offset)
+{  
+  const uint64_t n = numberOfNeurons;
+  neurons.resize(n);
+
+  herr_t      coord_status_;
+  
+  // target neuron ids are based on neuron_id MOD numberOfNodes:
+  // So the target neuron ids are: Node_id, Node_id+numberOfNodes, Node_id+2*numberOfNodes, ..
+  
+  hsize_t count  = n; 
+    
+  hid_t cell_file_id = H5Fopen (cell_file_name, H5F_ACC_RDONLY, H5P_DEFAULT); 
+   
+  
+  hid_t filespace_id = H5Screate_simple (1, &count, NULL);
+  
+  
+  int num_processes = nest::Communicator::get_num_processes();
+  int rank = nest::Communicator::get_rank();
+  
+  
+  //NEST neuron id mapping
+  int64_t first_neuron = (rank%num_processes)-(mod_offset%num_processes);
+  if (first_neuron<1)
+    first_neuron += -1 * first_neuron + num_processes;
+  
+  hsize_t offset= first_neuron;
+  hsize_t local_count=n/num_processes + ((mod_offset+n-1)%num_processes<rank) - (mod_offset%num_processes<rank);
+  
+  hsize_t stride=nest::Communicator::get_num_processes();
+  hsize_t block=1;
+  
+  
+  
+  H5Sselect_hyperslab (filespace_id, H5S_SELECT_SET, &offset, &stride, &local_count, &block);
+  
+  hid_t memspace_id = H5Screate_simple (1, &local_count, NULL);
+  
+  //only parameters for local nodes are needed
+  std::vector< float > buffer_flt(local_count);
+  for (int i=0; i< neurons.prop_names.size(); i++) {
+    hid_t dset = H5Dopen2 (cell_file_id, neurons.prop_names[i].c_str(), H5P_DEFAULT);
+    H5Dread (dset, H5T_NATIVE_FLOAT, memspace_id, filespace_id, H5P_DEFAULT, &buffer_flt[0]);
+    H5Dclose (dset);
+    
+    // hyperslab cannot be used, because neurons object can contain different datatypes than floats!!
+    int j_local=0;
+    for (int j=first_neuron;j<n;j+=num_processes) {
+      neurons[j].prop_values_[i] = buffer_flt[j_local];
+      j_local++;
+    }
+    
+    std::cout << "Prop values: " << neurons.prop_names[i] << " done" << std::endl;
+  }
+  
+  //need subnet information of all nodes
+  std::vector< int > buffer_int(n);
+  if (neurons.with_subnet) {
+    hid_t dset = H5Dopen2 (cell_file_id, neurons.subnet_name.c_str(), H5P_DEFAULT);
+    H5Dread (dset, H5T_NATIVE_INT, memspace_id, H5S_ALL, H5P_DEFAULT, &buffer_int[0]);
+    H5Dclose (dset);
+    
+    for (int j=0;j<n;j++)
+      neurons[j].subnet_ = buffer_int[j];
+  }
+
   coord_status_ = H5Sclose (memspace_id);
   coord_status_ = H5Fclose (cell_file_id);
 }

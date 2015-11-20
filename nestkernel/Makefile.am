@@ -31,7 +31,9 @@ libnest_la_CXXFLAGS= @AM_CXXFLAGS@
 
 libnest_la_SOURCES=\
 		H5Synapses/H5SynMEMPedictor.h H5Synapses/H5SynMEMPedictor.cpp\
+		H5Synapses/H5Neurons.h H5Synapses/H5Neurons.cpp\
 		H5Synapses/H5Synapses.h H5Synapses/H5Synapses.cpp\
+		H5Synapses/NESTNodeNeuron.h H5Synapses/NESTNodeNeuron.cpp\
 		H5Synapses/NESTNodeSynapse.h H5Synapses/NESTNodeSynapse.cpp\
 		H5Synapses/nmpi.h H5Synapses/nmpi.cpp\
 		H5Synapses/timer/stopwatch.h H5Synapses/timer/stopwatch.cpp\

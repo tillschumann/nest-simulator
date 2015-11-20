@@ -263,7 +263,12 @@ public:
   public:
     void execute(SLIInterpreter *) const;
   } hdf5mikeload_s_sfunction;
-
+  
+  class H5NeuronCsX_s_a_sFunction: public SLIFunction
+  {
+  public:
+    void execute(SLIInterpreter *) const;
+  } h5neuroncsx_s_a_sfunction;
 
   class SimulateFunction : public SLIFunction
   {

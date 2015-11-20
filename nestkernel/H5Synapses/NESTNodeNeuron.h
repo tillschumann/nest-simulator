@@ -1,4 +1,8 @@
 #include <iostream>
+#include <string>
+#include <vector>
+
+#include "communicator.h"
 
 #ifndef NESTNODENEURON_CLASS
 #define NESTNODENEURON_CLASS
@@ -10,70 +14,74 @@ class NESTNodeNeuron
 private:
 public:  
     NESTNodeNeuron();
-    NESTNodeNeuron(const float& C_m,
-		   const float& Delta_T,
-		   const float& E_L,
-		   const float& E_ex,
-		   const float& E_in,
-		   const float& V_peak,
-		   const float& V_reset,
-		   const float& V_th,
-		   const float& a,
-		   const float& b,
-		   const float& x,
-		   const float& y,
-		   const float& z,
-		   const int& subnet
-		  );
+    NESTNodeNeuron(const int& subnet);
     ~NESTNodeNeuron();
     
-    std::vector< double > prop_values_;
-    
-    float C_m_;
-    float Delta_T_;
-    float E_L_;
-    float E_ex_;
-    float E_in_;
-    float V_peak_;
-    float V_reset_;
-    float V_th_;
-    float a_;
-    float b_;
-    float x_;
-    float y_;
-    float z_;
-    
-    
-    //g_L
-    //tau_w
-    //t_ref
-    //tau_syn_ex
-    //tau_syn_in
-    
+    float parameter_values_[13];
     int subnet_;
-    
-    void set( const float& C_m,
-	      const float& Delta_T,
-	      const float& E_L,
-	      const float& E_ex,
-	      const float& E_in,
-	      const float& V_peak,
-	      const float& V_reset,
-	      const float& V_th,
-	      const float& a,
-	      const float& b,
-	      const float& x,
-	      const float& y,
-	      const float& z,
-	      const int& subnet
-	    );
-    
-    void serialize(double* buf);
-    void deserialize(double* buf);
     
     //bool operator<(const NESTNodeNeuron& rhs) const;
 };
 
-
+class NESTNeuronList
+{  
+public:
+  std::vector< float > neuron_parameters_;
+  std::vector< int > subsets_;
+  
+  nest::index model_id_;
+  std::vector < std::string > parameter_names;
+  
+  bool with_subnet;
+  std::string subnet_name;
+  
+  NESTNodeNeuron operator[](std::size_t idx)
+  {
+    NESTNodeNeuron neuron(subsets_[idx]);
+    for (int i=0; i<13; i++)
+      neuron.parameter_values_[i] = neuron_parameters_[idx+i];
+    return neuron;
+  };
+  
+  float getParameter(std::size_t idx, std::size_t idp)
+  {
+    return neuron_parameters_[idx*13+idp];
+  }
+  
+  float setParameter(std::size_t idx, std::size_t idp, const float v)
+  {
+    neuron_parameters_[idx*13+idp] = v;
+  }
+  
+  void resize(const int& n)
+  {
+    
+    //neuron_parameters_ can be reduced; number of used entries: n/NUM_PROCESSES
+    neuron_parameters_.resize(n*13);
+    subsets_.resize(n);
+  }
+  void clear()
+  {
+    neuron_parameters_.clear();
+    subsets_.clear();
+  }
+  size_t size() const
+  {
+    return subsets_.size();
+  }
+  void push_back(const NESTNodeNeuron& neuron)
+  {
+    for (int i=0; i<13; i++)
+      neuron_parameters_.push_back(neuron.parameter_values_[i]);
+  }
+  void getSubnet(const std::size_t idx)
+  {
+    return subsets_[idx];
+  }
+  void setSubnet(std::size_t idx, int subnet)
+  {
+    subsets_[idx] = subnet;
+  }
+};
 
 #endif

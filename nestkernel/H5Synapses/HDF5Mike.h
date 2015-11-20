@@ -131,16 +131,18 @@ public:
   /*
    * extract the number of neurons from coord file
    */
-  static int getNumberOfNeurons(const char* coord_file_name);
+  static uint64_t getNumberOfNeurons(const char* coord_file_name);
   
-  static void loadAllNeurons(const char* cell_file_name, const uint32_t& numberOfNeurons, GIDVector<NESTNodeNeuron>& neurons);
+  static void loadAllNeurons(const char* cell_file_name, const uint64_t& numberOfNeurons, NESTNeuronList& neurons);
+  
+  static void loadLocalNeurons(const char* cell_file_name, const uint64_t& numberOfNeurons, NESTNeuronList& neurons, const int mod_offset);
   
   static void getValueFromDataset(hid_t& cell_file_id,hid_t& memspace_id,const int& n, const int& offset_i, const char* name, const hid_t& mem_type_id, NESTNodeNeuron* ptr);
   
   /*
    * load coordinates for neurons
    */
-  static void loadAllNeuronCoords(const char* coord_file_name, const uint32_t& numberOfNeurons, std::vector<Coords>& neurons_pos);
+  //static void loadAllNeuronCoords(const char* coord_file_name, const uint32_t& numberOfNeurons, std::vector<Coords>& neurons_pos);
 };
 
 

@@ -2,6 +2,9 @@
 #include <vector>
 #include "mpi.h"
 
+#include "network.h"
+#include "nestmodule.h"
+
 #ifndef H5SYNAPSESLOADER_CLASS
 #define H5SYNAPSESLOADER_CLASS
 
@@ -34,9 +37,6 @@ struct H5View {
     return a.syn_ptr < b.syn_ptr; 
   };
 };
-
-
-
 
 class H5SynapsesLoader
 {
@@ -117,16 +117,25 @@ public:
     H5Fclose (file_id_);
   }
   
+  /*
+   * Returns the number of synapses (entries in syn dataset)
+   */
   size_t getNumberOfSynapses()
   {
     H5Dataset cell_dataset(this,"syn");
     return getNumberOfSynapses(cell_dataset);
   }
-  
+  /*
+   * returns of file pointer reached end of file
+   */
   bool eof()
   {
     return total_num_syns_ <= global_offset_;
   }
+  
+  /*
+   * Load source neuron ids and store in vector
+   */
   
   void loadNeuronLinks()
   {
@@ -178,7 +187,7 @@ public:
       {
 	it_neuronLinks++;
 	if (it_neuronLinks==neuronLinks.end()) {
-	  std::cout << "Error: integrateSourceNeurons, source neuron not found:\ti=" << i << "\tindex=" << index << "\tsource_neuron=" << source_neuron << std::endl;
+	  nest::NestModule::get_network().message( SLIInterpreter::M_ERROR, "H5SynapsesLoader::integrateSourceNeurons()", "HDF5 neuron and synapse dataset dont match");
 	  break;
 	}
 	else {
@@ -190,6 +199,11 @@ public:
     }
   }
   
+  /*
+   * Get num_syns synapses from datasets collectivly
+   * Move file pointer to for next function call
+   * 
+   */
   void iterateOverSynapsesFromFiles(NESTSynapseList& synapses, const uint64_t& num_syns)
   {    
     hid_t memtype = H5Tcreate (H5T_COMPOUND, sizeof (NESTNodeSynapse)); // sizeof (synapses) -> make function
@@ -218,6 +232,8 @@ public:
     
     hid_t dataspace_id = H5Dget_space(syn_dataset.getId());
     hid_t memspace_id;
+    
+    //be careful if there are no synapses to load
     if (dataspace_view.count[0]>0) {
       H5Sselect_hyperslab (dataspace_id, H5S_SELECT_SET, dataspace_view.offset, dataspace_view.stride, dataspace_view.count, dataspace_view.block);
       memspace_id = H5Screate_simple (1, dataspace_view.count, NULL);
@@ -226,11 +242,12 @@ public:
       H5Sselect_none(dataspace_id);
       memspace_id=H5Scopy(dataspace_id);
       H5Sselect_none(memspace_id);
-    }
-    
+    } 
     
     synapses.resize(dataspace_view.count[0]);
     
+    
+    // setup collective read operation
     hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
     
@@ -241,8 +258,10 @@ public:
     H5Sclose (memspace_id);
     H5Sclose (dataspace_id);
     
+    // integrate NEST neuron id offset to synapses
     integrateSourceNeurons(synapses, dataspace_view);
     
+    // observer variable
     n_readSynapses += dataspace_view.count[0];
   }
 };

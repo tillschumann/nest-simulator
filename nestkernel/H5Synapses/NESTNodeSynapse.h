@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include "communicator.h"
 
 #ifndef NESTNODESYNAPSE_CLASS
 #define NESTNODESYNAPSE_CLASS
@@ -42,7 +43,6 @@ class NESTSynapseList
 {
 private:
   std::vector < NESTNodeSynapse > synapses;
-  //std::vector < std::string > prop_names;
   
 public:
   nest::index synmodel_id_;
@@ -94,7 +94,5 @@ public:
     return 3 + 5 * 2;
   }
 };
-
-
 
 #endif

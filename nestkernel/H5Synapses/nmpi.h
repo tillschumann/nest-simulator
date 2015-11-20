@@ -5,6 +5,9 @@
 #include "omp.h"
 #include "mpi.h"
 
+#include "network.h"
+#include "nestmodule.h"
+
 #include "communicator.h"
 #include <fstream>
 #include <cstring>
@@ -379,7 +382,19 @@ public:
     Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAP, &heap);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_GUARD, &guard);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_MMAP, &mmap);
-    std::cout << info << "\trank= " << nest::Communicator::get_rank() << "\theap= " << (double)(heap)/(1024*1024) << "\tstack= " << (double)(stack)/(1024*1024) << "\thavail= " << (double)heapavail/(1024*1024) << "\tsavail= " << (double)stackavail/(1024*1024) << "\tshared= " << (double)shared/(1024*1024) << "\tpersist= " << (double)persist/(1024*1024) << "\tguard= " << (double)guard/(1024*1024) << "\tmmap= " << (double)mmap/(1024*1024) << std::endl;
+    
+    nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+      "H5Synapses::import",
+      String::compose("rank=%1\theap=%2\ttack=%3\thavail=%4\tsavail=%5\tshared=%6\tpersist=%7\tguard=%8\tmmap=%9",
+		      nest::Communicator::get_rank(),
+		      (double)(heap)/(1024*1024),
+		      (double)(stack)/(1024*1024),
+		      (double)heapavail/(1024*1024),
+		      (double)stackavail/(1024*1024),
+		      (double)shared/(1024*1024),
+		      (double)persist/(1024*1024),
+		      (double)guard/(1024*1024),
+		      (double)mmap/(1024*1024)));
     #endif
     #endif
   }
