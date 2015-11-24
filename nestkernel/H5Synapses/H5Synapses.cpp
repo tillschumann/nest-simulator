@@ -299,7 +299,7 @@ void H5Synapses::import(const std::string& syn_filename)
     threadConnectNeurons(n_conSynapses);
     tracelogger.end(0,"connect");
     
-    freeSynapses();
+    //freeSynapses();
   }
   
   //recieve datasets from other nodes
@@ -315,8 +315,9 @@ void H5Synapses::import(const std::string& syn_filename)
     threadConnectNeurons(n_conSynapses);
     tracelogger.end(0,"connect");
     
-    freeSynapses();
+    //freeSynapses();
   }
+  
   tracelogger.end(0,"run");
   
   nest::NestModule::get_network().message( SLIInterpreter::M_INFO,

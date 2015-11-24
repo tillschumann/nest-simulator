@@ -1,5 +1,7 @@
 #include "hdf5.h"
 #include <vector>
+#include <algorithm>
+#include <numeric>
 #include "mpi.h"
 
 #include "network.h"
@@ -42,8 +44,6 @@ class H5SynapsesLoader
 {
 protected:
   hid_t file_id_, gid_; //hdf5 file pointer
-  
-  uint64_t global_offset;
   
   uint64_t& n_readSynapses;
   uint64_t& n_SynapsesInDatasets;
@@ -89,7 +89,7 @@ protected:
   }
   
 public:
-  H5SynapsesLoader(const std::string h5file, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets) : global_offset(0), n_readSynapses(n_readSynapses), n_SynapsesInDatasets(n_SynapsesInDatasets), global_offset_(0)
+  H5SynapsesLoader(const std::string h5file, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets) : global_offset_(0), n_readSynapses(n_readSynapses), n_SynapsesInDatasets(n_SynapsesInDatasets)
   {
     MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESSES);
     MPI_Comm_rank(MPI_COMM_WORLD, &RANK);
@@ -251,7 +251,7 @@ public:
     hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
     
-    H5Dread (syn_dataset.getId(), memtype, memspace_id, dataspace_id, H5P_DEFAULT, &synapses[0]);
+    H5Dread (syn_dataset.getId(), memtype, memspace_id, dataspace_id, dxpl_id_, &synapses[0]);
     
     H5Pclose(dxpl_id_);
   
