@@ -48,9 +48,17 @@ public:
     return neuron_parameters_[idx*13+idp];
   }
   
-  float setParameter(std::size_t idx, std::size_t idp, const float v)
+  void setParameter(std::size_t idx, std::size_t idp, const float v)
   {
     neuron_parameters_[idx*13+idp] = v;
+  }
+  
+  void swap(std::size_t i, std::size_t j)
+  {
+    float tmp[13];
+    memcpy(tmp, &neuron_parameters_[i*13], sizeof(float)*13);
+    memcpy(&neuron_parameters_[i*13], &neuron_parameters_[j*13], sizeof(float)*13);
+    memcpy(&neuron_parameters_[j*13], tmp, sizeof(float)*13);
   }
   
   void resize(const int& n)
@@ -74,7 +82,7 @@ public:
     for (int i=0; i<13; i++)
       neuron_parameters_.push_back(neuron.parameter_values_[i]);
   }
-  void getSubnet(const std::size_t idx)
+  int getSubnet(const std::size_t idx)
   {
     return subsets_[idx];
   }

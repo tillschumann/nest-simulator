@@ -24,9 +24,9 @@ public:
     unsigned int node_id_;
     
     
-    double prop_values_[10];
+    double prop_values_[5];
     
-    unsigned int num_used_prop_values_;
+    //unsigned int num_used_prop_values_;
       
     void set(const unsigned int& source_neuron_, const unsigned int& target_neuron_);
     

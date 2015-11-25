@@ -93,6 +93,14 @@ void H5Neurons::CreateSubnets()
   //std::cout << "numberOfSubnets=" << n_newSubnets << std::endl;
 }
 
+/*void shuffelNeurons()
+{
+  std::vector< bool > swap_please(neurons_.size());
+  for (int i=0; i<neurons_.size(); i++)
+    if (swap_please[i])
+      neurons_.swap(i,i+1);
+}*/
+
 /*
  * Create Neurons in subnets using loaded parameters
  */

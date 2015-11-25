@@ -80,6 +80,10 @@ void H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
   const int& num_vp = nest::Communicator::get_num_virtual_processes(); 
   
   uint64_t n_conSynapses_tmp=0;
+
+  std::stringstream ss;
+  ss << "threadConnectNeurons new_cons=" << synapses_.size();
+  TraceLogger::print_mem(ss.str());
   
   omp_init_lock(&tokenLock);
   
@@ -118,10 +122,7 @@ void H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 	}
       }
       tracelogger.store(tid,"nest::connect", before_connect, connect_dur);
-    }
-    std::stringstream ss;
-    ss << "threadConnectNeurons new_cons=" << synapses_.size();
-    TraceLogger::print_mem(ss.str());  
+    }  
   }
   
   omp_destroy_lock(&tokenLock);

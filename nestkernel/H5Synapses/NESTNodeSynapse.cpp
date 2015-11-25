@@ -4,7 +4,7 @@
 
 #include "communicator.h"
 
-NESTNodeSynapse::NESTNodeSynapse(): num_used_prop_values_(5)
+NESTNodeSynapse::NESTNodeSynapse()
 {}
 NESTNodeSynapse::NESTNodeSynapse(const unsigned int& source_neuron, const unsigned int& target_neuron)
 {
@@ -29,7 +29,7 @@ void NESTNodeSynapse::serialize(unsigned int* buf)
   buf[0] = source_neuron_;
   buf[1] = target_neuron_;
   buf[2] = node_id_;
-  memcpy(&buf[3], &prop_values_[0], num_used_prop_values_*sizeof(double));
+  memcpy(&buf[3], &prop_values_[0], 5*sizeof(double));
 }
 void NESTNodeSynapse::deserialize(unsigned int* buf)
 {
@@ -37,7 +37,7 @@ void NESTNodeSynapse::deserialize(unsigned int* buf)
   target_neuron_ = buf[1];
   node_id_ = buf[2];
   
-  memcpy(&prop_values_[0], &buf[3], num_used_prop_values_*sizeof(double));
+  memcpy(&prop_values_[0], &buf[3], 5*sizeof(double));
 }
 bool NESTNodeSynapse::operator<(const NESTNodeSynapse& rhs) const
 {
