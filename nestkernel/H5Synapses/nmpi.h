@@ -385,8 +385,8 @@ public:
     
     nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
       "H5Synapses::import",
-      String::compose("%1 rank=%2\theap=%3\ttack=%4\thavail=%5\tsavail=%6\tshared=%7\tpersist=%8\tguard=%9\tmmap=%10",
-		      info.c_str(),
+      String::compose("%1\trank=%2\theap=%3\ttack=%4\thavail=%5\tsavail=%6\tshared=%7\tpersist=%8\tguard=%9\tmmap=%10",
+		      info,
 		      nest::Communicator::get_rank(),
 		      (double)(heap)/(1024*1024),
 		      (double)(stack)/(1024*1024),

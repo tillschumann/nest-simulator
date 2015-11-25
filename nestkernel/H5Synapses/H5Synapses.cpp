@@ -269,7 +269,7 @@ void H5Synapses::import(const std::string& syn_filename)
   
   
   //number of synapses per iteration effects memory consumption and speed of the import module
-  uint64_t nos = 1e6; 
+  uint64_t nos = 1e5; 
   
   //load datasets from files
   while (!synloader.eof())
@@ -300,7 +300,7 @@ void H5Synapses::import(const std::string& syn_filename)
     threadConnectNeurons(n_conSynapses);
     tracelogger.end(0,"connect");
     
-    //freeSynapses();
+    freeSynapses();
   }
   
   //recieve datasets from other nodes
@@ -316,7 +316,7 @@ void H5Synapses::import(const std::string& syn_filename)
     threadConnectNeurons(n_conSynapses);
     tracelogger.end(0,"connect");
     
-    //freeSynapses();
+    freeSynapses();
   }
   
   tracelogger.end(0,"run");
