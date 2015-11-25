@@ -26,7 +26,7 @@ private:
   
   TraceLogger tracelogger;
   
-  H5SynMEMPredictor memPredictor;
+  //H5SynMEMPredictor memPredictor;
   
   NESTSynapseList synapses_;
   

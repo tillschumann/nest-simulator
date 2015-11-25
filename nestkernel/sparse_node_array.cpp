@@ -102,7 +102,7 @@ nest::SparseNodeArray::get_node_by_gid( index gid ) const
   assert( local_max_gid_ <= max_gid_ );
 
   if ( gid > max_gid_ )
-    throw UnknownNode(); 
+    throw UnknownNode(gid); 
 
   // handle root node requests first
   if ( gid == 0 )

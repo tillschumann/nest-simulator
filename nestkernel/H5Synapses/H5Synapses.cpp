@@ -76,8 +76,9 @@ void H5Synapses::singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id
 
 void H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 {
-  const int& num_processes = nest::Communicator::get_num_processes();
-  const int& num_vp = nest::Communicator::get_num_virtual_processes(); 
+  const int rank = nest::Communicator::get_rank();
+  const int num_processes = nest::Communicator::get_num_processes();
+  const int num_vp = nest::Communicator::get_num_virtual_processes(); 
   
   uint64_t n_conSynapses_tmp=0;
 
@@ -87,8 +88,8 @@ void H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
   
   omp_init_lock(&tokenLock);
   
-  if (memPredictor.preNESTConnect(synapses_.size())==0)
-  {
+  //if (memPredictor.preNESTConnect(synapses_.size())==0)
+  //{
     
     #pragma omp parallel default(shared) reduction(+:n_conSynapses_tmp)
     {
@@ -112,18 +113,29 @@ void H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 	const nest::index target = synapses_[i].target_neuron_;
 	
 	//assert for smaller maximum neuron id
-	
-	nest::Node* const target_node = nest::NestModule::get_network().get_node(target);
-	const nest::thread target_thread = target_node->get_thread();
-	
-	if (target_thread == tid)  // ((synapses_[i].target_neuron_ % num_vp) / num_processes == section_ptr) // synapse belongs to local thread, connect function is thread safe for this condition
+	try
 	{
-	  singleConnect(synapses_[i], synapses_.synmodel_id_, target_node, target_thread, n_conSynapses_tmp, connect_dur);
+	  nest::Node* const target_node = nest::NestModule::get_network().get_node(target);
+	  const nest::thread target_thread = target_node->get_thread();
+	  
+	  if (target_thread == tid)  // ((synapses_[i].target_neuron_ % num_vp) / num_processes == section_ptr) // synapse belongs to local thread, connect function is thread safe for this condition
+	  {
+	    singleConnect(synapses_[i], synapses_.synmodel_id_, target_node, target_thread, n_conSynapses_tmp, connect_dur);
+	  }
+	  
 	}
+	catch (nest::UnknownNode e)
+	{
+	  nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+	    "H5Synapses::threadConnectNeurons",
+	    String::compose( "UnknownNode\trank=%1\t%2",
+				rank, e.message()) );
+	}
+	
       }
       tracelogger.store(tid,"nest::connect", before_connect, connect_dur);
     }  
-  }
+  //}
   
   omp_destroy_lock(&tokenLock);
   
@@ -139,8 +151,8 @@ void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
   
   omp_init_lock(&tokenLock);
   
-  if (memPredictor.preNESTConnect(synapses_.size())==0)
-  {
+  //if (memPredictor.preNESTConnect(synapses_.size())==0)
+  //{
     for (int i=0; i< synapses_.size(); i++) {
       const nest::index target = synapses_[i].target_neuron_;
       nest::Node* const target_node = nest::NestModule::get_network().get_node(target);
@@ -151,7 +163,7 @@ void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
     }
   
     tracelogger.store(0,"nest::connect", before_connect, connect_dur);
-  }
+  //}
   omp_destroy_lock(&tokenLock);
 }
 
@@ -269,13 +281,13 @@ void H5Synapses::import(const std::string& syn_filename)
   
   
   //number of synapses per iteration effects memory consumption and speed of the import module
-  uint64_t nos = 1e5; 
+  uint64_t nos = 1e6; 
   
   //load datasets from files
   while (!synloader.eof())
   {
     //number of synapses per iteration might be reduced if there is not enough memory available
-    memPredictor.predictBestLoadNos(nos);
+    //memPredictor.predictBestLoadNos(nos);
     
     tracelogger.begin(0,"loadSynapses");
     synloader.iterateOverSynapsesFromFiles(synapses_, nos);      
