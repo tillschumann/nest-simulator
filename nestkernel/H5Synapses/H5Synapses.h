@@ -38,7 +38,7 @@ private:
   CommunicateSynapses_Status CommunicateSynapses();
   
 public:
-  H5Synapses(nest::index offset, const Name synmodel_name, TokenArray synparam_names);
+  H5Synapses(nest::index offset, const Name synmodel_name, TokenArray synparam_names, TokenArray synparam_facts);
   ~H5Synapses();
   void import(const std::string& syn_filename);
 };

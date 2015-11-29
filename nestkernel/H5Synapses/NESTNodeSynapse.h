@@ -47,6 +47,7 @@ private:
 public:
   nest::index synmodel_id_;
   std::vector < std::string > prop_names;
+  std::vector < double > prop_facts;
   
   NESTNodeSynapse& operator[](std::size_t idx)
   {

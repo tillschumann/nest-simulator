@@ -11,7 +11,7 @@
 
 
 
-H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name)
+H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name): first_neuron_id(0)
 {
   for (int i=0; i<param_names.size(); i++) { 
     neurons_.parameter_names.push_back(param_names[i]);
@@ -130,7 +130,7 @@ void H5Neurons::CreateNeurons()
   //if there are no subnets all neurons are created continously
   //else the command creates the neurons for the last entries with same subnet
   const nest::index last_neuron_id = nest::NestModule::get_network().add_node(neurons_.model_id_, non-last_index);
-  const nest::index first_neuron_id = last_neuron_id - non +1;
+  first_neuron_id = last_neuron_id - non +1;
 
   //set parameters of created neurons
   //ids of neurons are continously even though they might be in different subnets
@@ -144,4 +144,9 @@ void H5Neurons::CreateNeurons()
       node->set_status(d);
     }
   }
+}
+
+nest::index H5Neurons::getFirstNeuronId()
+{
+  return first_neuron_id;
 }

@@ -46,7 +46,7 @@ void H5Synapses::singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id
       //mutex easiest workaround
       omp_set_lock(&tokenLock);
       for (int i=0; i<synapses_.prop_names.size(); i++)
-	def< double_t >( d, synapses_.prop_names[i], synapse.prop_values_ [i] );
+	def< double_t >( d, synapses_.prop_names[i], synapses_.prop_facts[i] * synapse.prop_values_ [i]  );
       omp_unset_lock(&tokenLock);
       
       //set synapse type and check for delay boundary
@@ -102,8 +102,12 @@ void H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
       
       //throw has to be moved out of the parallel region!!
     
-      //if (num_vp != (int)(num_processes*omp_get_num_threads()))
-      //	throw nest::KernelException ("H5Synapses::threadConnectNeurons(): NEST threads are not equal to OMP threads" );
+      if (num_vp != (int)(num_processes*omp_get_num_threads()))
+      	//throw nest::KernelException ("H5Synapses::threadConnectNeurons(): NEST threads are not equal to OMP threads" );
+	nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+	    "H5Synapses::threadConnectNeurons",
+	    String::compose( "Thread number is wrong\tnest-threads=%1\topenmp-threads=%2",
+				num_vp, (int)(num_processes*omp_get_num_threads())) );
     
       //without preprocessing:
       //only connect neurons which are on local thread otherwise skip
@@ -240,10 +244,18 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses()
 /**
  * 
  */
-H5Synapses::H5Synapses(nest::index offset, const Name synmodel_name, TokenArray synparam_names): neuron_id_offset_(offset)
+H5Synapses::H5Synapses(nest::index offset, const Name synmodel_name, TokenArray synparam_names, TokenArray synparam_facts): neuron_id_offset_(offset)
 {  
+  //assert (synapses_.prop_names.size() >=  synapses_.prop_facts.size())
+  
   for (int i=0; i<synparam_names.size(); i++)
     synapses_.prop_names.push_back(synparam_names[i]);
+  
+  synapses_.prop_facts.resize(synapses_.prop_names.size(), 1.);
+  
+  for (int i=0; i<synparam_facts.size(); i++)
+    synapses_.prop_facts[i] = synparam_facts[i];
+  
 
   const Token synmodel = nest::NestModule::get_network().get_synapsedict().lookup(synmodel_name);
   synapses_.synmodel_id_ = static_cast<nest::index>(synmodel);

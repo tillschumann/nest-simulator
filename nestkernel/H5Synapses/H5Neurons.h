@@ -13,9 +13,12 @@ private:
   
   std::map<int,nest::index> subnetMap_;
   
+  nest::index first_neuron_id;
+  
 public:
   H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name);
   void import(const std::string& filename);
   
+  nest::index getFirstNeuronId();
   
 };
