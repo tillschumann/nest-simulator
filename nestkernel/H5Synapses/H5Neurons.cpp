@@ -11,7 +11,7 @@
 
 
 
-H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name): first_neuron_id(0)
+H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name): first_neuron_id(0), with_scale(false)
 {
   for (int i=0; i<param_names.size(); i++) { 
     neurons_.parameter_names.push_back(param_names[i]);
@@ -22,6 +22,33 @@ H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, const Name s
   neurons_.with_subnet = (subnet_name != "");
   if (neurons_.with_subnet)
     neurons_.subnet_name = subnet_name.toString();
+}
+
+H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, TokenArray iparam_facts, TokenArray iparam_offsets, const Name subnet_name): first_neuron_id(0), with_scale(true)
+{
+  for (int i=0; i<param_names.size(); i++) { 
+    neurons_.parameter_names.push_back(param_names[i]);
+  }
+  const Token neuron_model = nest::NestModule::get_network().get_modeldict().lookup(model_name);
+  neurons_.model_id_ = static_cast<nest::index>(neuron_model);
+  
+  neurons_.with_subnet = (subnet_name != "");
+  if (neurons_.with_subnet)
+    neurons_.subnet_name = subnet_name.toString();
+  
+  param_facts.resize(neurons_.parameter_names.size(), 1.);
+  for (int i=0; i<iparam_facts.size(); i++) {
+    param_facts[i] = iparam_facts[i];
+  }
+  
+  param_offsets.resize(neurons_.parameter_names.size(), 0.);
+  for (int i=0; i<iparam_offsets.size(); i++)
+    param_offsets[i] = iparam_offsets[i];
+}
+
+void H5Neurons::addConstant(std::string name, const double value)
+{
+  const_params.push_back(ParameterValue(name, value));
 }
 
 void H5Neurons::import(const std::string& filename)
@@ -139,8 +166,16 @@ void H5Neurons::CreateNeurons()
     if (nest::NestModule::get_network().is_local_node(node))
     {
       DictionaryDatum d( new Dictionary );
-      for (int j=0; j<neurons_.parameter_names.size(); j++)
-	def< double_t >( d, neurons_.parameter_names[j], neurons_.getParameter(i, j) );
+      if (with_scale)
+	for (int j=0; j<neurons_.parameter_names.size(); j++)
+ 	  def< double_t >( d, neurons_.parameter_names[j], neurons_.getParameter(i, j) * param_facts[j] + param_offsets[j] );
+      else
+	for (int j=0; j<neurons_.parameter_names.size(); j++)
+	  def< double_t >( d, neurons_.parameter_names[j], neurons_.getParameter(i, j) );
+	
+      for (int j=0; j<const_params.size(); j++)
+	def< double_t >( d, const_params[j].name, const_params[j].value );      
+      
       node->set_status(d);
     }
   }

@@ -970,24 +970,28 @@ NestModule::Connect_i_i_d_d_lFunction::execute( SLIInterpreter* i ) const
 */
 void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 {
-  i->assert_stack_load(4);
+  i->assert_stack_load(6);
   
+  TokenArray hdf5_names = getValue< TokenArray >( i->OStack.pick( 6 ) );
+  TokenArray synparam_offset = getValue< TokenArray >( i->OStack.pick( 5 ) );
   index neuron_offset = getValue< long >( i->OStack.pick( 4 ) );
   TokenArray synparam_names = getValue< TokenArray >( i->OStack.pick( 3 ) );
   TokenArray synparam_facts = getValue< TokenArray >( i->OStack.pick( 2 ) );
   const Name synmodel_name = getValue< std::string >( i->OStack.pick( 1 ) );
   const std::string syn_file = getValue<std::string>(i->OStack.pick(0));
 
-  const int& num_threads = nest::NestModule::get_network().get_num_threads();
+  const int tmp_num_threads = omp_get_num_threads();
+  
+  const int num_threads = nest::NestModule::get_network().get_num_threads();
   omp_set_num_threads(num_threads);
   
-  H5Synapses h5Synapses(neuron_offset,synmodel_name, synparam_names, synparam_facts);
+  H5Synapses h5Synapses(neuron_offset,synmodel_name, hdf5_names, synparam_names, synparam_facts, synparam_offset);
   h5Synapses.import(syn_file);
   
-  omp_set_dynamic(false);
-  omp_set_num_threads(1);
+  //omp_set_dynamic(false);
+  omp_set_num_threads(tmp_num_threads);
 
-  i->OStack.pop(5);  
+  i->OStack.pop(6);  
   i->EStack.pop();
 }
 
@@ -1020,15 +1024,22 @@ void NestModule::H5NeuronCsX_s_a_sFunction::execute(SLIInterpreter *i) const
 {
   i->assert_stack_load(4);
   
+  TokenArray cparams_names = getValue< TokenArray >( i->OStack.pick( 5 ) );
+  TokenArray cparams_values = getValue< TokenArray >( i->OStack.pick( 4 ) );
   const Name subnet_name = getValue< std::string >( i->OStack.pick( 3 ) );
   TokenArray param_names = getValue< TokenArray >( i->OStack.pick( 2 ) );
   const Name model_name = getValue< std::string >( i->OStack.pick( 1 ) );
   const std::string neuron_file = getValue<std::string>(i->OStack.pick(0));
 
   H5Neurons h5neurons(model_name, param_names, subnet_name);
+  
+  
+  for (int i=0; i<cparams_names.size(); i++)
+    h5neurons.addConstant(cparams_names[i], cparams_values[i]);
+  
   h5neurons.import(neuron_file);
 
-  i->OStack.pop(4);
+  i->OStack.pop(6);
   
   i->OStack.push( h5neurons.getFirstNeuronId() );
   i->EStack.pop();

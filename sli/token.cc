@@ -105,12 +105,11 @@ Token::Token( const std::valarray< double >& value )
   p = new ArrayDatum( value );
 }
 
-/*
+
 Token::operator Datum* () const
 {
   return p;
 }
-*/
 
 Token::operator long() const
 {

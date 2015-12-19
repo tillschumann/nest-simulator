@@ -259,6 +259,7 @@ Tsodyks2Connection< targetidentifierT >::set_status( const DictionaryDatum& d, C
   updateValue< double_t >( d, names::tau_rec, tau_rec_ );
   updateValue< double_t >( d, names::tau_fac, tau_fac_ );
   updateValue< double_t >( d, names::x, x_ );
+  //std::cout << weight_ << "\t" << U_ << "\t" << u_ << "\t" << tau_rec_ << "\t" << tau_fac_ << "\t" << std::endl;
 }
 
 } // namespace

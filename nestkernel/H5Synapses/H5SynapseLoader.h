@@ -52,6 +52,9 @@ protected:
   uint64_t global_offset_;
   
   
+  hid_t syn_memtype_;
+  
+  
   int NUM_PROCESSES;
   int RANK;
  
@@ -77,11 +80,13 @@ protected:
     }
   };
   
-  size_t getNumberOfSynapses(H5Dataset& cell_dataset)
+  H5Dataset* syn_dataset;
+  
+  size_t getNumberOfSynapses(H5Dataset& dataset)
   {
     hsize_t count;
     
-    hid_t dataspace_id = H5Dget_space(cell_dataset.getId());
+    hid_t dataspace_id = H5Dget_space(dataset.getId());
     H5Sget_simple_extent_dims(dataspace_id, &count, NULL); // get vector length from x dataset length
     H5Sclose (dataspace_id);
     
@@ -89,11 +94,10 @@ protected:
   }
   
 public:
-  H5SynapsesLoader(const std::string h5file, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets) : global_offset_(0), n_readSynapses(n_readSynapses), n_SynapsesInDatasets(n_SynapsesInDatasets)
+  H5SynapsesLoader(const std::string h5file, const std::vector<std::string> prop_names, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets) : global_offset_(0), n_readSynapses(n_readSynapses), n_SynapsesInDatasets(n_SynapsesInDatasets)
   {
     MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESSES);
     MPI_Comm_rank(MPI_COMM_WORLD, &RANK);
-    
     
     hid_t fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
@@ -105,14 +109,33 @@ public:
     
     gid_ = H5Gopen(file_id_,"/",H5P_DEFAULT);
     
+    syn_dataset = new H5Dataset(this, "syn");
+    
+   
     total_num_syns_ = getNumberOfSynapses();
     
     n_SynapsesInDatasets += total_num_syns_;
     
     loadNeuronLinks();
+    
+     //create syn memtype
+    syn_memtype_ = H5Tcreate (H5T_COMPOUND, sizeof (NESTNodeSynapse)); // sizeof (synapses) -> make function
+    //target is always given
+    H5Tinsert (syn_memtype_, "target", HOFFSET (NESTNodeSynapse, target_neuron_), H5T_NATIVE_INT);
+    //additionally load following columns
+    for (int i=0; i< prop_names.size(); i++) {
+      H5Tinsert (syn_memtype_, prop_names[i].c_str(), HOFFSET (NESTNodeSynapse, prop_values_)+i*sizeof(double), H5T_NATIVE_DOUBLE);
+    }
+    
   }
+  
   ~H5SynapsesLoader()
   {
+    
+    H5Tclose(syn_memtype_);
+    
+    delete syn_dataset;
+    
     H5Gclose(gid_);
     H5Fclose (file_id_);
   }
@@ -122,8 +145,8 @@ public:
    */
   size_t getNumberOfSynapses()
   {
-    H5Dataset cell_dataset(this,"syn");
-    return getNumberOfSynapses(cell_dataset);
+    //H5Dataset cell_dataset(this,"syn");
+    return getNumberOfSynapses(*syn_dataset);
   }
   /*
    * returns of file pointer reached end of file
@@ -205,15 +228,7 @@ public:
    * 
    */
   void iterateOverSynapsesFromFiles(NESTSynapseList& synapses, const uint64_t& num_syns)
-  {    
-    hid_t memtype = H5Tcreate (H5T_COMPOUND, sizeof (NESTNodeSynapse)); // sizeof (synapses) -> make function
-    //target is always given
-    H5Tinsert (memtype, "target", HOFFSET (NESTNodeSynapse, target_neuron_), H5T_NATIVE_INT);
-    //additionally load following columns
-    for (int i=0; i< synapses.prop_names.size(); i++) {
-      H5Tinsert (memtype, synapses.prop_names[i].c_str(), HOFFSET (NESTNodeSynapse, prop_values_)+i*sizeof(double), H5T_NATIVE_DOUBLE);
-    }
-    
+  {       
     std::vector<uint64_t> global_num_syns(NUM_PROCESSES);
     uint64_t private_num_syns = num_syns;
     
@@ -228,9 +243,7 @@ public:
       count=0;
     H5View dataspace_view(count, private_offset); 
     
-    H5Dataset syn_dataset(this, "syn");
-    
-    hid_t dataspace_id = H5Dget_space(syn_dataset.getId());
+    hid_t dataspace_id = H5Dget_space(syn_dataset->getId());
     hid_t memspace_id;
     
     //be careful if there are no synapses to load
@@ -251,7 +264,7 @@ public:
     hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
     H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
     
-    H5Dread (syn_dataset.getId(), memtype, memspace_id, dataspace_id, dxpl_id_, &synapses[0]);
+    H5Dread (syn_dataset->getId(), syn_memtype_, memspace_id, dataspace_id, dxpl_id_, &synapses[0]);
     
     H5Pclose(dxpl_id_);
   

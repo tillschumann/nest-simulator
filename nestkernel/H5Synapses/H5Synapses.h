@@ -26,19 +26,24 @@ private:
   
   TraceLogger tracelogger;
   
+  
+  std::vector<double> param_offset;
+  
+  std::vector<std::string> synparam_names;
+  
   //H5SynMEMPredictor memPredictor;
   
   NESTSynapseList synapses_;
   
-  void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur);
+  void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur);
   void ConnectNeurons(uint64_t& n_conSynapses);
-  void threadConnectNeurons(uint64_t& n_conSynapses);
+  uint64_t threadConnectNeurons(uint64_t& n_conSynapses);
   
   void freeSynapses();
   CommunicateSynapses_Status CommunicateSynapses();
   
 public:
-  H5Synapses(nest::index offset, const Name synmodel_name, TokenArray synparam_names, TokenArray synparam_facts);
+  H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names,TokenArray synparam_names, TokenArray synparam_facts, TokenArray synparam_offset);
   ~H5Synapses();
   void import(const std::string& syn_filename);
 };

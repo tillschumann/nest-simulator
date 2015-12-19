@@ -203,6 +203,7 @@ class TraceLogger
   std::vector< std::vector<std::string> > labels_;
   std::vector< std::vector<nestio::Stopwatch::timestamp_t> > begin_;
   std::vector< std::vector<nestio::Stopwatch::timestamp_t> > end_;
+  std::vector< std::vector<double> > v0_;
   std::vector< std::vector<int> > dataset_;
   
   std::vector<nestio::Stopwatch::timestamp_t> offset;
@@ -215,6 +216,7 @@ public:
     labels_.resize(num_threads);
     begin_.resize(num_threads);
     end_.resize(num_threads);
+    v0_.resize(num_threads);
     dataset_.resize(num_threads);
     
     
@@ -337,6 +339,7 @@ public:
     begin_[thread_num].push_back(begin-offset[thread_num]);
     dataset_[thread_num].push_back(id);
     end_[thread_num].push_back(begin-offset[thread_num]+end);
+    v0_[thread_num].push_back(0.);
     #endif
   }
   
@@ -352,9 +355,10 @@ public:
     begin_[thread_num].push_back(nestio::Stopwatch::get_timestamp()-offset[thread_num]);
     dataset_[thread_num].push_back(id);
     end_[thread_num].push_back(0);
+    v0_[thread_num].push_back(0);
     #endif
   }
-  void end(const int& id, const std::string& label)
+  void end(const int& id, const std::string& label, const double& value = 0.)
   {
     #ifdef _DEBUG_MODE
     const int thread_num = omp_get_thread_num();
@@ -363,6 +367,7 @@ public:
     {
       if (labels_[thread_num][i] == label && dataset_[thread_num][i] == id && end_[thread_num][i]==0) {
 	end_[thread_num][i] = nestio::Stopwatch::get_timestamp()-offset[thread_num];
+	v0_[thread_num][i] = value;
 	break;
       }
     }
@@ -412,6 +417,7 @@ private:
 	os << dataset_[i][j] << ";";
 	os << begin_[i][j] << ";";
 	os << end_[i][j] << ";";
+	os << v0_[i][j] << ";";
 	os << std::endl;
       }
     }
