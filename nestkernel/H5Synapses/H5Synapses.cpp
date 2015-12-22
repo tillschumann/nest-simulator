@@ -112,7 +112,6 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 	v_ptr[i] = &token_ref;
       }
       omp_unset_lock(&tokenLock);
-      #pragma omp barrier
 	
       for (int i=0;i<synapses_.size();i++) {
 	
@@ -275,6 +274,8 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses()
 H5Synapses::H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names, TokenArray isynparam_names, TokenArray synparam_facts, TokenArray synparam_offset): neuron_id_offset_(offset)
 {  
   //assert (synapses_.prop_names.size() >=  synapses_.prop_facts.size())
+  omp_init_lock(&tokenLock);
+  
   
   for (int i=0; i<hdf5_names.size(); i++) {
     synparam_names.push_back(isynparam_names[i]);
@@ -302,6 +303,7 @@ H5Synapses::H5Synapses(nest::index offset, const Name synmodel_name, TokenArray 
 
 H5Synapses::~H5Synapses()
 {
+  omp_destroy_lock(&tokenLock);
 }
 
 void H5Synapses::freeSynapses()
