@@ -33,6 +33,14 @@
 #include "event.h"
 #include "exceptions.h"
 
+#ifdef SCOREP_USER_ENABLE
+#ifndef SCOREP_COMPILE
+#define SCOREP_COMPILE
+#endif
+#include <scorep/SCOREP_User.h>
+#endif
+
+
 namespace nest
 {
 class Node;

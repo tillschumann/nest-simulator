@@ -1,6 +1,6 @@
 #include <vector>
 #include <deque>
-#include "nmpi.h"
+//#include "nmpi.h"
 #include "NESTNodeSynapse.h"
 #include <map>
 
@@ -24,7 +24,7 @@ private:
   
   uint32_t neuron_id_offset_;
   
-  TraceLogger tracelogger;
+  //TraceLogger tracelogger;
   
   
   std::vector<double> param_offset;
@@ -35,7 +35,7 @@ private:
   
   NESTSynapseList synapses_;
   
-  void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur);
+  void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses/*, nestio::Stopwatch::timestamp_t& connect_dur*/);
   void ConnectNeurons(uint64_t& n_conSynapses);
   uint64_t threadConnectNeurons(uint64_t& n_conSynapses);
   
@@ -45,7 +45,7 @@ private:
 public:
   H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names,TokenArray synparam_names, TokenArray synparam_facts, TokenArray synparam_offset);
   ~H5Synapses();
-  void import(const std::string& syn_filename);
+  void import(const std::string& syn_filename, const nest::index num_syanpses_per_process=0, const nest::index last_total_synapse=0);
 };
 
 #endif

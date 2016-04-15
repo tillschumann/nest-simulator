@@ -1,5 +1,5 @@
 #include "NESTNodeSynapse.h"
-#include "nmpi.h"
+//#include "nmpi.h"
 #include <cstring>
 
 #include "communicator.h"

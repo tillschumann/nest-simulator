@@ -1,4 +1,4 @@
-/*
+/* 123
  *  nestmodule.cpp
  *
  *  This file is part of NEST.
@@ -970,8 +970,14 @@ NestModule::Connect_i_i_d_d_lFunction::execute( SLIInterpreter* i ) const
 */
 void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 {
-  i->assert_stack_load(6);
+  #ifdef SCOREP_COMPILE
+  SCOREP_USER_REGION( "syn_import_module", SCOREP_USER_REGION_TYPE_FUNCTION )
+  #endif 
+
+  i->assert_stack_load(8);
   
+  const index last_total_synapse = getValue< long >( i->OStack.pick( 8 ) );
+  const int block_per_process = getValue< long >( i->OStack.pick( 7 ) );
   TokenArray hdf5_names = getValue< TokenArray >( i->OStack.pick( 6 ) );
   TokenArray synparam_offset = getValue< TokenArray >( i->OStack.pick( 5 ) );
   index neuron_offset = getValue< long >( i->OStack.pick( 4 ) );
@@ -986,12 +992,12 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
   omp_set_num_threads(num_threads);
   
   H5Synapses h5Synapses(neuron_offset,synmodel_name, hdf5_names, synparam_names, synparam_facts, synparam_offset);
-  h5Synapses.import(syn_file);
+  h5Synapses.import(syn_file, block_per_process, last_total_synapse);
   
   //omp_set_dynamic(false);
   omp_set_num_threads(tmp_num_threads);
 
-  i->OStack.pop(6);  
+  i->OStack.pop(8);  
   i->EStack.pop();
 }
 

@@ -1,4 +1,5 @@
-#include "nmpi.h"
+//#include "nmpi.h"
+#include "omp.h"
 #include "NESTNodeNeuron.h"
 
 class H5Neurons

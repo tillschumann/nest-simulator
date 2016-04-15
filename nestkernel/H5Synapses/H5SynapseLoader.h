@@ -54,6 +54,10 @@ protected:
   
   hid_t syn_memtype_;
   
+  bool     is_num_syns_fixed_;
+  uint64_t fixed_num_syns_;
+  
+  std::vector < NeuronLink >::const_iterator it_neuronLinks_;
   
   int NUM_PROCESSES;
   int RANK;
@@ -94,10 +98,20 @@ protected:
   }
   
 public:
-  H5SynapsesLoader(const std::string h5file, const std::vector<std::string> prop_names, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets) : global_offset_(0), n_readSynapses(n_readSynapses), n_SynapsesInDatasets(n_SynapsesInDatasets)
+  H5SynapsesLoader(const std::string h5file, const std::vector<std::string> prop_names, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets, uint64_t fixed_num_syns=0, uint64_t lastSyn=0)
+  : global_offset_(0),
+    n_readSynapses(n_readSynapses),
+    n_SynapsesInDatasets(n_SynapsesInDatasets),
+    is_num_syns_fixed_(false)
   {
     MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESSES);
     MPI_Comm_rank(MPI_COMM_WORLD, &RANK);
+    
+    if (fixed_num_syns>0) {
+      is_num_syns_fixed_ = true;
+      fixed_num_syns_ = fixed_num_syns;
+    }
+    
     
     hid_t fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
@@ -116,7 +130,7 @@ public:
     
     n_SynapsesInDatasets += total_num_syns_;
     
-    loadNeuronLinks();
+    //loadNeuronLinks();
     
      //create syn memtype
     syn_memtype_ = H5Tcreate (H5T_COMPOUND, sizeof (NESTNodeSynapse)); // sizeof (synapses) -> make function
@@ -126,6 +140,11 @@ public:
     for (int i=0; i< prop_names.size(); i++) {
       H5Tinsert (syn_memtype_, prop_names[i].c_str(), HOFFSET (NESTNodeSynapse, prop_values_)+i*sizeof(double), H5T_NATIVE_DOUBLE);
     }
+    
+    if (lastSyn>0)
+      setLastSyn(lastSyn); // should be called berfore loadNeuronLinks
+    
+    loadNeuronLinks();
     
   }
   
@@ -138,6 +157,12 @@ public:
     
     H5Gclose(gid_);
     H5Fclose (file_id_);
+  }
+  
+  void setLastSyn(uint64_t last)
+  {
+    if (last < total_num_syns_)
+      total_num_syns_ = last;
   }
   
   /*
@@ -155,6 +180,33 @@ public:
   {
     return total_num_syns_ <= global_offset_;
   }
+  
+  void removeNotNeededNeuronLinks()
+  {
+    //std::cout << "fixed_num_syns_=" << fixed_num_syns_ << "\ttotal_num_syns_=" << total_num_syns_ << "\tglobal_offset_=" << global_offset_ << std::endl;
+    
+    std::vector < NeuronLink > tmp_neuronLinks;
+    
+    const uint64_t start = fixed_num_syns_ * RANK;
+    const uint64_t end = fixed_num_syns_ * (RANK+1);
+    
+    //sort out not necessary neuron links
+    //best case: reduces neuronLinks size by around 1-1/NUM_PROCESSES 
+    for (int i=0; i<neuronLinks.size(); i++) {
+      //only synapses from global_offset_ to total_num_syns_ are loaded
+      if (/*neuronLinks[i].syn_ptr<total_num_syns_ &&*/ neuronLinks[i].syn_ptr+neuronLinks[i].syn_n > global_offset_) {
+	const uint64_t entry_start = (neuronLinks[i].syn_ptr - global_offset_) % (fixed_num_syns_ * NUM_PROCESSES);
+	const uint64_t entry_end = (neuronLinks[i].syn_ptr+neuronLinks[i].syn_n - global_offset_) % (fixed_num_syns_ * NUM_PROCESSES);
+	
+	if ((entry_start >= start && entry_start < end) || (entry_end > start && entry_end <= end) || (entry_start <= start && entry_end >= end)) {
+	  tmp_neuronLinks.push_back(neuronLinks[i]);
+	}
+      }
+    }
+    
+    neuronLinks.swap(tmp_neuronLinks);
+  }
+  
   
   /*
    * Load source neuron ids and store in vector
@@ -177,16 +229,33 @@ public:
     H5Sget_simple_extent_dims(dataspace_id, &count, NULL);
    
     neuronLinks.resize(count);
+
     
-    hid_t memspace_id = H5Screate_simple (1, &count, NULL);
+    //load dataset only on one node
+    if (RANK==0) {
+      hid_t memspace_id = H5Screate_simple (1, &count, NULL);
+      
+      hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
+      //H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
+      H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_INDEPENDENT);
+
+      H5Dread (neuronLink_dataset.getId(), memtype, memspace_id, dataspace_id, dxpl_id_, &neuronLinks[0]);
+      
+      H5Pclose(dxpl_id_);
+
+      H5Sclose (memspace_id);
+    }
+    //broadcast entries to all nodes
+    MPI_Bcast(&neuronLinks[0], count*sizeof(NeuronLink), MPI_CHAR, 0, MPI_COMM_WORLD);
     
-    H5Dread (neuronLink_dataset.getId(), memtype, memspace_id, dataspace_id, H5P_DEFAULT, &neuronLinks[0]);
-  
-    H5Sclose (memspace_id);
     H5Sclose (dataspace_id);
     
+    if (is_num_syns_fixed_)
+      removeNotNeededNeuronLinks();
     
     std::stable_sort(neuronLinks.begin(), neuronLinks.end(), H5View::MinSynPtr);
+    
+    it_neuronLinks_=neuronLinks.begin();
   }
  
   /**
@@ -198,27 +267,23 @@ public:
   {
     uint64_t index = view.view2dataset(0);
     
-    std::vector < NeuronLink >::const_iterator it_neuronLinks=neuronLinks.begin();
-      
-    int source_neuron=it_neuronLinks->id;  
-    int next_ptr=it_neuronLinks->syn_ptr + it_neuronLinks->syn_n;
-    
     for (int i=0; i<synapses.size(); i++)
     {      
       index = view.view2dataset(i);
-      while (index>=next_ptr && it_neuronLinks<neuronLinks.end())
-      {
-	it_neuronLinks++;
-	if (it_neuronLinks==neuronLinks.end()) {
-	  nest::NestModule::get_network().message( SLIInterpreter::M_ERROR, "H5SynapsesLoader::integrateSourceNeurons()", "HDF5 neuron and synapse dataset dont match");
+      
+      while (it_neuronLinks_<neuronLinks.end()) {
+	if (index >= (it_neuronLinks_->syn_ptr+it_neuronLinks_->syn_n)) {
+	  it_neuronLinks_++;
+	}
+	else if (index < it_neuronLinks_->syn_ptr) {
+	  std::cout << "ERROR:" << "index=" << index << "\tsyn_ptr=" << it_neuronLinks_->syn_ptr << std::endl;
 	  break;
 	}
 	else {
-	  source_neuron=it_neuronLinks->id;
-	  next_ptr=it_neuronLinks->syn_ptr+it_neuronLinks->syn_n;
+	  synapses[i].source_neuron_ = it_neuronLinks_->id;
+	  break;
 	}
       }
-      synapses[i].source_neuron_ = source_neuron;
     }
   }
   
@@ -227,8 +292,12 @@ public:
    * Move file pointer to for next function call
    * 
    */
-  void iterateOverSynapsesFromFiles(NESTSynapseList& synapses, const uint64_t& num_syns)
+  void iterateOverSynapsesFromFiles(NESTSynapseList& synapses, uint64_t num_syns=0)
   {       
+    if (is_num_syns_fixed_) 
+      num_syns = fixed_num_syns_;
+    
+    
     std::vector<uint64_t> global_num_syns(NUM_PROCESSES);
     uint64_t private_num_syns = num_syns;
     
