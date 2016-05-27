@@ -48,6 +48,10 @@
 #include "H5Synapses/H5Synapses.h"
 #include "H5Synapses/H5Neurons.h"
 
+#ifdef HPCTOOLKIT
+#include <hpctoolkit.h>
+#endif
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -566,7 +570,10 @@ NestModule::SimulateFunction::execute( SLIInterpreter* i ) const
 
   // experimental callback and signal safe, uncomment for testing, MD 090105
   // i->EStack.push(i->execbarrier_token);  // protect by barrier
+  
+  
   get_network().simulate( t );
+  
   // i->EStack.pop();                       // pop the barrier
 
 
@@ -974,7 +981,7 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
   SCOREP_USER_REGION( "syn_import_module", SCOREP_USER_REGION_TYPE_FUNCTION )
   #endif 
 
-  i->assert_stack_load(8);
+  i->assert_stack_load(9); 
   
   const index last_total_synapse = getValue< long >( i->OStack.pick( 8 ) );
   const int block_per_process = getValue< long >( i->OStack.pick( 7 ) );
@@ -995,9 +1002,34 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
   h5Synapses.import(syn_file, block_per_process, last_total_synapse);
   
   //omp_set_dynamic(false);
-  omp_set_num_threads(tmp_num_threads);
+  //omp_set_num_threads(tmp_num_threads);
 
-  i->OStack.pop(8);  
+  i->OStack.pop(9);  
+  i->EStack.pop();
+}
+
+
+void NestModule::Starthpctoolkit_Function::execute(SLIInterpreter *i) const
+{
+#ifdef HPCTOOLKIT
+  hpctoolkit_sampling_start();
+#else
+  i->message( SLIInterpreter::M_WARNING,
+     "StartHPCToolkit",
+     "HPCToolkit is not available. Please recompile NEST with HPCToolkit support." );
+#endif
+  i->EStack.pop();
+}
+
+void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
+{
+#ifdef HPCTOOLKIT
+  hpctoolkit_sampling_stop();
+#else
+  i->message( SLIInterpreter::M_WARNING,
+       "StopHPCToolkit",
+       "HPCToolkit it not available. Please recompile NEST with HPCToolkit support." );
+#endif
   i->EStack.pop();
 }
 
@@ -1028,7 +1060,7 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 */
 void NestModule::H5NeuronCsX_s_a_sFunction::execute(SLIInterpreter *i) const
 {
-  i->assert_stack_load(4);
+  i->assert_stack_load(6);
   
   TokenArray cparams_names = getValue< TokenArray >( i->OStack.pick( 5 ) );
   TokenArray cparams_values = getValue< TokenArray >( i->OStack.pick( 4 ) );
@@ -2143,6 +2175,9 @@ NestModule::init( SLIInterpreter* i )
 
   i->createcommand("HDF5MikeLoad_s_s", &hdf5mikeload_s_sfunction);
   i->createcommand("H5NeuronCsX_s_a_s", &h5neuroncsx_s_a_sfunction);
+  
+  i->createcommand("StartHPCToolkit", &starthpctoolkit_function);
+  i->createcommand("StopHPCToolkit", &stophpctoolkit_function);
   
 
   i->createcommand( "ResetNetwork", &resetnetworkfunction );

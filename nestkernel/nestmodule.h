@@ -277,6 +277,22 @@ public:
   public:
     void execute(SLIInterpreter *) const;
   } h5neuroncsx_s_a_sfunction;
+  
+  
+  
+  
+  class Starthpctoolkit_Function: public SLIFunction
+  {
+  public:
+    void execute(SLIInterpreter *) const;
+  } starthpctoolkit_function;
+  
+  class Stophpctoolkit_Function: public SLIFunction
+  {
+  public:
+    void execute(SLIInterpreter *) const;
+  } stophpctoolkit_function;
+  
 
   class SimulateFunction : public SLIFunction
   {

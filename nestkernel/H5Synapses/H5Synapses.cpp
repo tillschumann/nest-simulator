@@ -50,6 +50,13 @@ void H5Synapses::singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id
       double value = synapse.prop_values_ [i] * synapses_.prop_facts[i] + param_offset[i];
       setValue<double_t>( *v_ptr[i], value );
     }
+    
+    synapse.prop_values_ [0] *= synapses_.prop_facts[0];
+    synapse.prop_values_ [0] += param_offset[0];
+
+    synapse.prop_values_ [1] *= synapses_.prop_facts[1];
+    synapse.prop_values_ [1] += param_offset[1];
+
 
     nest::NestModule::get_network().connect(source, target_node, target_thread, synmodel_id, d, synapse.prop_values_ [0], synapse.prop_values_ [1]);
     
@@ -75,9 +82,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
   uint64_t n_conSynapses_sum=0;
   uint64_t n_conSynapses_max=0;
 
-  std::stringstream ss;
-  ss << "threadConnectNeurons new_cons=" << synapses_.size();
-  //TraceLogger::print_mem(ss.str());
+ 
   
   uint64_t shared, persist, heapavail, stackavail, stack, heap, guard, mmap;
     Kernel_GetMemorySize(KERNEL_MEMSIZE_SHARED, &shared);
@@ -88,6 +93,10 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
     Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAP, &heap);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_GUARD, &guard);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_MMAP, &mmap);
+    
+    std::stringstream ss;
+    ss << "threadConnectNeurons new_cons=" << synapses_.size();
+    //TraceLogger::print_mem(ss.str());
 
     nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
       "H5Synapses::import",
@@ -158,6 +167,13 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 	    String::compose( "IllegalConnection\trank=%1\t%2",
 				rank, e.message()) );
 	}
+	catch (nest::KernelException e)
+	{
+	  nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+	    "H5Synapses::threadConnectNeurons",
+	    String::compose( "KernelException\trank=%1\t%2",
+				rank, e.message()) );
+	}
       }
       //tracelogger.store(tid,"nest::connect", before_connect, connect_dur);
       omp_set_lock(&tokenLock);
@@ -168,7 +184,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
     n_conSynapses_max = n_conSynapses_tmp;
   }
   n_conSynapses += n_conSynapses_sum;
-  return n_conSynapses_max;
+  return n_conSynapses;
 }
 
 void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)

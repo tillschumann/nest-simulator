@@ -172,6 +172,19 @@ public:
    */
   void calibrate( const TimeConverter& );
 
+
+   ///// moved here for testing
+
+  /**
+     * A 3-dim structure to hold the Connector objects which in turn hold the connection
+     * information.
+     * - First dim: A std::vector for each local thread
+     * - Second dim: A std::vector for each node on each thread
+     * - Third dim: A std::vector for each synapse prototype, holding the Connector objects
+     */
+
+    tVSConnector connections_;
+
 private:
   std::vector< ConnectorModel* > pristine_prototypes_; //!< The list of clean synapse prototypes
   std::vector< std::vector< ConnectorModel* > > prototypes_; //!< The list of available synapse
@@ -182,15 +195,7 @@ private:
   Network& net_;            //!< The reference to the network
   Dictionary* synapsedict_; //!< The synapsedict (owned by the network)
 
-  /**
-   * A 3-dim structure to hold the Connector objects which in turn hold the connection
-   * information.
-   * - First dim: A std::vector for each local thread
-   * - Second dim: A std::vector for each node on each thread
-   * - Third dim: A std::vector for each synapse prototype, holding the Connector objects
-   */
 
-  tVSConnector connections_;
 
   mutable size_t num_connections_; //!< The global counter for the number of synapses
 
