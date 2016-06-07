@@ -64,6 +64,13 @@ extern PoorMansAllocator poormansallocpool;
 #endif
 #endif
 
+#ifdef SCOREP_USER_ENABLE
+#ifndef SCOREP_COMPILE
+#define SCOREP_COMPILE
+#endif
+#include <scorep/SCOREP_User.h>
+#endif
+
 extern int SLIsignalflag;
 
 nest::Network* nest::Scheduler::net_ = 0;
@@ -550,23 +557,27 @@ nest::Scheduler::update()
 #pragma omp barrier
 #endif
       }
-
-      for ( i = nodes_vec_[ t ].begin(); i != nodes_vec_[ t ].end(); ++i )
       {
-        // We update in a parallel region. Therefore, we need to catch exceptions
-        // here and then handle them after the parallel region.
-        try
-        {
-          if ( not( *i )->is_frozen() )
-            ( *i )->update( clock_, from_step_, to_step_ );
-        }
-        catch ( std::exception& e )
-        {
-          // so throw the exception after parallel region
-          exceptions_raised.at( t ) =
-            lockPTR< WrappedThreadException >( new WrappedThreadException( e ) );
-          terminate_ = true;
-        }
+		#ifdef SCOREP_COMPILE
+		SCOREP_USER_REGION("update", SCOREP_USER_REGION_TYPE_FUNCTION)
+		#endif
+		  for ( i = nodes_vec_[ t ].begin(); i != nodes_vec_[ t ].end(); ++i )
+		  {
+			// We update in a parallel region. Therefore, we need to catch exceptions
+			// here and then handle them after the parallel region.
+			try
+			{
+			  if ( not( *i )->is_frozen() )
+				( *i )->update( clock_, from_step_, to_step_ );
+			}
+			catch ( std::exception& e )
+			{
+			  // so throw the exception after parallel region
+			  exceptions_raised.at( t ) =
+				lockPTR< WrappedThreadException >( new WrappedThreadException( e ) );
+			  terminate_ = true;
+			}
+		  }
       }
 
 // parallel section ends, wait until all threads are done -> synchronize
@@ -576,6 +587,9 @@ nest::Scheduler::update()
 // the other threads are enforced to wait at the end of the block
 #pragma omp master
       {
+        #ifdef SCOREP_COMPILE
+		SCOREP_USER_REGION("gather", SCOREP_USER_REGION_TYPE_FUNCTION)
+		#endif
         if ( to_step_ == min_delay_ ) // gather only at end of slice
           gather_events_();
 
@@ -1383,6 +1397,9 @@ nest::Scheduler::collocate_buffers_()
 void
 nest::Scheduler::deliver_events_( thread t )
 {
+#ifdef SCOREP_COMPILE
+SCOREP_USER_REGION("deliver", SCOREP_USER_REGION_TYPE_FUNCTION)
+#endif
   // deliver only at beginning of time slice
   if ( from_step_ > 0 )
     return;

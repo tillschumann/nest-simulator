@@ -544,6 +544,10 @@ nest::RecordingDevice::set_status( const DictionaryDatum& d )
 void
 nest::RecordingDevice::record_event( const Event& event, bool endrecord )
 {
+  #ifdef SCOREP_COMPILE
+  SCOREP_USER_REGION( "record_event", SCOREP_USER_REGION_TYPE_FUNCTION )
+  #endif
+
   ++S_.events_;
   const index sender = event.get_sender_gid();
   const Time stamp = event.get_stamp();

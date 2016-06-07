@@ -52,6 +52,13 @@
 #include <hpctoolkit.h>
 #endif
 
+#ifdef SCOREP_USER_ENABLE
+#ifndef SCOREP_COMPILE
+#define SCOREP_COMPILE
+#endif
+#include <scorep/SCOREP_User.h>
+#endif
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -924,6 +931,10 @@ NestModule::Connect_i_i_lFunction::execute( SLIInterpreter* i ) const
 void
 NestModule::Connect_i_i_d_d_lFunction::execute( SLIInterpreter* i ) const
 {
+  #ifdef SCOREP_COMPILE
+  SCOREP_USER_REGION( "import_neurons", SCOREP_USER_REGION_TYPE_FUNCTION )
+  #endif
+
   i->assert_stack_load( 5 );
 
   index source = getValue< long >( i->OStack.pick( 4 ) );
@@ -978,8 +989,8 @@ NestModule::Connect_i_i_d_d_lFunction::execute( SLIInterpreter* i ) const
 void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 {
   #ifdef SCOREP_COMPILE
-  SCOREP_USER_REGION( "syn_import_module", SCOREP_USER_REGION_TYPE_FUNCTION )
-  #endif 
+  SCOREP_USER_REGION( "import_synapses", SCOREP_USER_REGION_TYPE_FUNCTION )
+  #endif
 
   i->assert_stack_load(10);
   

@@ -28,13 +28,6 @@
 
 #include <algorithm>
 
-#ifdef SCOREP_USER_ENABLE
-#ifndef SCOREP_COMPILE
-#define SCOREP_COMPILE
-#endif
-#include <scorep/SCOREP_User.h>
-#endif
-
 #define _DEBUG_MODE 1
 
 
@@ -73,9 +66,6 @@ void H5Synapses::singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id
 
 uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 {
-#ifdef SCOREP_COMPILE 
-  SCOREP_USER_REGION("connect", SCOREP_USER_REGION_TYPE_FUNCTION)
-#endif
   const int rank = nest::Communicator::get_rank();
   const int num_processes = nest::Communicator::get_num_processes();
   const int num_vp = nest::Communicator::get_num_virtual_processes(); 
@@ -239,9 +229,6 @@ void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
  */
 CommunicateSynapses_Status H5Synapses::CommunicateSynapses()
 {
-#ifdef SCOREP_COMPILE
-  SCOREP_USER_REGION("alltoall", SCOREP_USER_REGION_TYPE_FUNCTION)
-#endif
   uint32_t num_processes = nest::Communicator::get_num_processes();
   
   std::stringstream sstream;
@@ -343,14 +330,12 @@ H5Synapses::~H5Synapses()
 
 void H5Synapses::freeSynapses()
 {
-#ifdef SCOREP_COMPILE
-  SCOREP_USER_REGION("free", SCOREP_USER_REGION_TYPE_FUNCTION)
-#endif
   synapses_.clear();
 }
 
 void H5Synapses::import(const std::string& syn_filename, const nest::index num_syanpses_per_process, const nest::index last_total_synapse)
 {
+
   int rank = nest::Communicator::get_rank();
   int size = nest::Communicator::get_num_processes();
     
@@ -381,31 +366,16 @@ void H5Synapses::import(const std::string& syn_filename, const nest::index num_s
     MPI_Barrier(MPI_COMM_WORLD);
     
     //tracelogger.begin(0,"loadSynapses");   
-    {
-#ifdef SCOREP_COMPILE
-      SCOREP_USER_REGION("load", SCOREP_USER_REGION_TYPE_FUNCTION)
-#endif
       synloader.iterateOverSynapsesFromFiles(synapses_);   
-    }
     //tracelogger.end(0,"loadSynapses");
     
     //integrate offset of ids to synapses
     //
-    {
-#ifdef SCOREP_COMPILE
-      SCOREP_USER_REGION("det", SCOREP_USER_REGION_TYPE_FUNCTION)
-#endif
     for (int i=0; i< synapses_.size(); i++)
       synapses_[i].integrateOffset(neuron_id_offset_); // inverse NEST offset + csaba offset (offset to 0-indicies)
-    }
     
     //tracelogger.begin(0,"sort");
-    {
-#ifdef SCOREP_COMPILE
-      SCOREP_USER_REGION("sort", SCOREP_USER_REGION_TYPE_FUNCTION)
-#endif
     std::sort(synapses_.begin(), synapses_.end());
-    }
     //tracelogger.end(0,"sort");
     
     //tracelogger.begin(0,"communicate");
