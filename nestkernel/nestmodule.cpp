@@ -981,8 +981,9 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
   SCOREP_USER_REGION( "syn_import_module", SCOREP_USER_REGION_TYPE_FUNCTION )
   #endif 
 
-  i->assert_stack_load(9); 
+  i->assert_stack_load(10);
   
+  const int stride = getValue< long >( i->OStack.pick( 9 ) );
   const index last_total_synapse = getValue< long >( i->OStack.pick( 8 ) );
   const int block_per_process = getValue< long >( i->OStack.pick( 7 ) );
   TokenArray hdf5_names = getValue< TokenArray >( i->OStack.pick( 6 ) );
@@ -999,12 +1000,14 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
   omp_set_num_threads(num_threads);
   
   H5Synapses h5Synapses(neuron_offset,synmodel_name, hdf5_names, synparam_names, synparam_facts, synparam_offset);
+
+  h5Synapses.setStride(stride);
   h5Synapses.import(syn_file, block_per_process, last_total_synapse);
   
   //omp_set_dynamic(false);
   //omp_set_num_threads(tmp_num_threads);
 
-  i->OStack.pop(9);  
+  i->OStack.pop(10);
   i->EStack.pop();
 }
 

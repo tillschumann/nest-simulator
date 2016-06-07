@@ -31,6 +31,8 @@ private:
   
   std::vector<std::string> synparam_names;
   
+  size_t stride_;
+
   //H5SynMEMPredictor memPredictor;
   
   NESTSynapseList synapses_;
@@ -46,6 +48,7 @@ public:
   H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names,TokenArray synparam_names, TokenArray synparam_facts, TokenArray synparam_offset);
   ~H5Synapses();
   void import(const std::string& syn_filename, const nest::index num_syanpses_per_process=0, const nest::index last_total_synapse=0);
+  void setStride(size_t stride);
 };
 
 #endif

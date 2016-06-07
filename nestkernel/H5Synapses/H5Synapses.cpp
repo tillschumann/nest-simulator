@@ -141,7 +141,9 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
       }
       omp_unset_lock(&tokenLock);
 	
-      for (int i=0;i<synapses_.size();i++) {
+    int stride_c=0;
+
+    for (int i=0;i<synapses_.size();i++) {
 	const nest::index target = synapses_[i].target_neuron_;
 	try
 	{
@@ -150,7 +152,13 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 	  
 	  if (target_thread == tid)  // ((synapses_[i].target_neuron_ % num_vp) / num_processes == section_ptr) // synapse belongs to local thread, connect function is thread safe for this condition
 	  {
-	    singleConnect(synapses_[i], synapses_.synmodel_id_, target_node, target_thread, d, v_ptr, n_conSynapses_tmp/*, connect_dur*/);
+		stride_c++;
+		if (stride_c==1) {
+			singleConnect(synapses_[i], synapses_.synmodel_id_, target_node, target_thread, d, v_ptr, n_conSynapses_tmp/*, connect_dur*/);
+		}
+		if (stride_c>=stride_) {
+			stride_c = 0;
+	    }
 	  }
 	}
 	catch (nest::UnknownNode e)
@@ -301,7 +309,8 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses()
 /**
  * 
  */
-H5Synapses::H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names, TokenArray isynparam_names, TokenArray synparam_facts, TokenArray synparam_offset): neuron_id_offset_(offset)
+H5Synapses::H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names, TokenArray isynparam_names, TokenArray synparam_facts, TokenArray synparam_offset)
+: neuron_id_offset_(offset), stride_(1)
 {  
   //assert (synapses_.prop_names.size() >=  synapses_.prop_facts.size())
   omp_init_lock(&tokenLock);
@@ -360,7 +369,6 @@ void H5Synapses::import(const std::string& syn_filename, const nest::index num_s
   CommunicateSynapses_Status com_status=UNSET;
   
   H5SynapsesLoader synloader(syn_filename, synapses_.prop_names,n_readSynapses,n_SynapsesInDatasets, num_syanpses_per_process, last_total_synapse);
-  
   //number of synapses per iteration effects memory consumption and speed of the import module
   //uint64_t nos = 1e6; 
   
@@ -435,4 +443,9 @@ void H5Synapses::import(const std::string& syn_filename, const nest::index num_s
       "H5Synapses::import",
       String::compose( "rank=%1\tn_readSynapses=%2\tn_conSynapses=%3\tn_memSynapses=%4\tn_SynapsesInDatasets=%5",
                           rank, n_readSynapses, n_conSynapses, n_memSynapses, n_SynapsesInDatasets) );
+}
+
+void H5Synapses::setStride(size_t stride)
+{
+	stride_ = stride;
 }

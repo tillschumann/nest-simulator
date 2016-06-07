@@ -407,15 +407,16 @@ nest::aeif_cond_exp::update( const Time& origin, const long_t from, const long_t
         S_.y_ );              // neuronal state
 
       if ( status != GSL_SUCCESS ) {
-        std::cout << "neuron "<< this->get_gid() << " error: e(V_m, G_exc, G_inh, W) = (" << B_.e_->yerr[0] << ", " << B_.e_->yerr[1] <<  ", " <<  B_.e_->yerr[2] << ", " << B_.e_->yerr[3] << ")" << std::endl;
+        //std::cout << "neuron "<< this->get_gid() << " error: e(V_m, G_exc, G_inh, W) = (" << B_.e_->yerr[0] << ", " << B_.e_->yerr[1] <<  ", " <<  B_.e_->yerr[2] << ", " << B_.e_->yerr[3] << ")" << std::endl;
         //throw GSLSolverFailure( get_name(), status );
       }
 
 
       // check for unreasonable values; we allow V_M to explode
-      if ( S_.y_[ State_::V_M ] < -1e3 || S_.y_[ State_::W ] < -1e6 || S_.y_[ State_::W ] > 1e6 )
-        std::cout << "neuron " << this->get_gid() << " error: V_m, W = " << S_.y_[ State_::V_M ] << ", " << S_.y_[ State_::W ] << std::endl;
-	//throw NumericalInstability( get_name() );
+      if ( S_.y_[ State_::V_M ] < -1e3 || S_.y_[ State_::W ] < -1e6 || S_.y_[ State_::W ] > 1e6 ) {
+        //std::cout << "neuron " << this->get_gid() << " error: V_m, W = " << S_.y_[ State_::V_M ] << ", " << S_.y_[ State_::W ] << std::endl;
+    	//throw NumericalInstability( get_name() );
+      }
 
       // spikes are handled inside the while-loop
       // due to spike-driven adaptation
