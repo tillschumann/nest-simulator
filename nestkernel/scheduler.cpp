@@ -587,6 +587,7 @@ nest::Scheduler::update()
 // the other threads are enforced to wait at the end of the block
 #pragma omp master
       {
+    	  {
         #ifdef SCOREP_COMPILE
 		SCOREP_USER_REGION("gather", SCOREP_USER_REGION_TYPE_FUNCTION)
 		#endif
@@ -607,6 +608,7 @@ nest::Scheduler::update()
           gettimeofday( &t_slice_end_, NULL );
           print_progress_();
         }
+    	  }
       }
 // end of master section, all threads have to synchronize at this point
 #pragma omp barrier

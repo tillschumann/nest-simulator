@@ -1213,14 +1213,12 @@ Network::read_toggle() const
 inline librandom::RngPtr
 Network::get_rng( thread t ) const
 {
-  assert(false);
   return scheduler_.get_rng( t );
 }
 
 inline librandom::RngPtr
 Network::get_grng() const
 {
-  assert(false);
   return scheduler_.get_grng();
 }
 
