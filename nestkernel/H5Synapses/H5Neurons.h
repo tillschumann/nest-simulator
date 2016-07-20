@@ -1,6 +1,12 @@
 //#include "nmpi.h"
-#include "omp.h"
+#include <map>
+#include <omp.h>
 #include "NESTNodeNeuron.h"
+#include "nest_types.h"
+#include "name.h"
+#include "tokenarray.h"
+#include "kernels.h"
+
 
 class H5Neurons
 {
@@ -12,7 +18,7 @@ private:
   
   NESTNeuronList neurons_;
   
-  std::map<int,nest::index> subnetMap_;
+  std::map< int, nest::index > subnetMap_;
   
   
   bool with_scale;
@@ -20,10 +26,12 @@ private:
   std::vector<double> param_facts;
   std::vector<double> param_offsets;
   
+  kernel_combi<float> kernel;
+
   struct ParameterValue {
-    Name name;
+    std::string name;
     double value;
-    ParameterValue(Name name, double value): name(name), value(value) {};
+    ParameterValue(std::string name, double value): name(name), value(value) {};
   };
   
   std::vector<ParameterValue> const_params;
@@ -32,9 +40,8 @@ private:
   
 public:
   H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name);
-  H5Neurons(const Name model_name, TokenArray param_names, TokenArray iparam_facts, TokenArray iparam_offsets, const Name subnet_name);
-  void import(const std::string& filename);
-  void addConstant(std::string name, const double value);
+  void import(const std::string& filename, TokenArray dataset_names);
+  void addKernel(std::string name, TokenArray params);
   
   nest::index getFirstNeuronId();
   

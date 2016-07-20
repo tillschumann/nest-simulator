@@ -82,12 +82,16 @@ set( nestkernel_sources
     node_manager.h node_manager.cpp
     logging_manager.h logging_manager.cpp
     manager_interface.h
+    H5Synapses/H5Synapses.h H5Synapses/H5Synapses.cpp
+    H5Synapses/H5Neurons.h H5Synapses/H5Neurons.cpp
+    H5Synapses/NESTNodeSynapse.h H5Synapses/NESTNodeSynapse.cpp
+    H5Synapses/NESTNodeNeuron.h H5Synapses/NESTNodeNeuron.cpp     
     )
 
 add_library( nestkernel ${nestkernel_sources} )
 target_link_libraries( nestkernel
-    nestutil random sli_lib h5import
-    ${LTDL_LIBRARIES} ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES}
+    nestutil random sli_lib
+    ${LTDL_LIBRARIES} ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES} ${HDF5_LIBRARIES}/libhdf5.a
     )
 
 target_include_directories( nestkernel PRIVATE
@@ -95,7 +99,12 @@ target_include_directories( nestkernel PRIVATE
     ${PROJECT_BINARY_DIR}/libnestutil
     ${PROJECT_SOURCE_DIR}/librandom
     ${PROJECT_SOURCE_DIR}/sli
+    ${PROJECT_SOURCE_DIR}/nestkernel/H5Synapses
+    ${PROJECT_SOURCE_DIR}/nestkernel
+    ${HDF5_INCLUDE_DIRS} 
     )
+    
+#add_subdirectory( H5Synapses )
 
 install( TARGETS nestkernel
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -103,4 +112,3 @@ install( TARGETS nestkernel
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
     
-add_subdirectory( H5Synapses )

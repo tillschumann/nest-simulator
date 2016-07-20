@@ -9,6 +9,7 @@
 //#include "H5SynMEMPedictor.h"
 #include "dictdatum.h"
 #include "H5SynapseLoader.h"
+#include "kernels.h"
 
 #ifndef H5Synapses_CLASS
 #define H5Synapses_CLASS
@@ -27,14 +28,14 @@ private:
   
   uint32_t neuron_id_offset_;
   
-  //TraceLogger tracelogger;
-  
   
   std::vector<double> param_offset;
   
   std::vector<std::string> synparam_names;
   
   size_t stride_;
+
+  kernel_combi<double> kernel;
 
   //H5SynMEMPredictor memPredictor;
   
@@ -52,6 +53,9 @@ public:
   ~H5Synapses();
   void import(const std::string& syn_filename, const nest::index num_syanpses_per_process=0, const nest::index last_total_synapse=0);
   void setStride(size_t stride);
+
+  void set_status( const DictionaryDatum& d );
+
 };
 
 #endif

@@ -56,8 +56,9 @@
 #include "stringdatum.h"
 #include "tokenutils.h"
 
-#include "H5Synapses/H5Synapses.h"
-#include "H5Synapses/H5Neurons.h"
+// Include from H5Synapses:
+#include "H5Synapses.h"
+#include "H5Neurons.h"
 
 #ifdef HPCTOOLKIT
 #include <hpctoolkit.h>
@@ -765,6 +766,8 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 
   i->assert_stack_load(10);
   
+  const DictionaryDatum params = getValue< DictionaryDatum >( i->OStack.pick( 1 ) );
+
   const int stride = getValue< long >( i->OStack.pick( 9 ) );
   const index last_total_synapse = getValue< long >( i->OStack.pick( 8 ) );
   const int block_per_process = getValue< long >( i->OStack.pick( 7 ) );
@@ -778,13 +781,15 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 
   const int tmp_num_threads = omp_get_num_threads();
   
-  const int num_threads = nest::NestModule::get_network().get_num_threads();
+	  const int num_threads = nest::kernel().vp_manager.get_num_threads();
   omp_set_num_threads(num_threads);
-  
-  H5Synapses h5Synapses(neuron_offset,synmodel_name, hdf5_names, synparam_names, synparam_facts, synparam_offset);
+
+  H5Synapses h5Synapses(synmodel_name, synparam_names);
+
+  h5Synapses.set_status(net_params);
 
   h5Synapses.setStride(stride);
-  h5Synapses.import(syn_file, block_per_process, last_total_synapse);
+  h5Synapses.import(syn_file, h5_params);
   
   //omp_set_dynamic(false);
   //omp_set_num_threads(tmp_num_threads);
@@ -857,10 +862,10 @@ void NestModule::H5NeuronCsX_s_a_sFunction::execute(SLIInterpreter *i) const
   H5Neurons h5neurons(model_name, param_names, subnet_name);
   
   
-  for (int i=0; i<cparams_names.size(); i++)
-    h5neurons.addConstant(cparams_names[i], cparams_values[i]);
+  //for (int i=0; i<cparams_names.size(); i++)
+  //  h5neurons.addConstant(cparams_names[i], cparams_values[i]);
   
-  h5neurons.import(neuron_file);
+  h5neurons.import(neuron_file, param_names);
 
   i->OStack.pop(6);
   

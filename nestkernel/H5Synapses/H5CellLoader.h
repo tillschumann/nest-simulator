@@ -87,7 +87,7 @@ public:
    * mod_offset: id of first new created neuron
    * neurons: output list
    */
-  void loadLocalParameters(const uint64_t numberOfNeurons, const int mod_offset, NESTNeuronList& neurons)
+  void loadLocalParameters(const std::vector<std::string>& dataset_names, const uint64_t numberOfNeurons, const int mod_offset, NESTNeuronList& neurons)
   { 
     
     // target neuron ids are based on neuron_id MOD numberOfNodes:
@@ -96,8 +96,8 @@ public:
     hsize_t count  = numberOfNeurons; 
     
     
-    int num_processes = nest::Communicator::get_num_processes();
-    int rank = nest::Communicator::get_rank();
+    int num_processes = nest::kernel().mpi_manager.get_num_processes();
+    int rank = nest::kernel().mpi_manager.get_rank();
     
     
     //NEST neuron id mapping
@@ -113,7 +113,7 @@ public:
     if (mod_offset%num_processes>rank || (mod_offset+numberOfNeurons-1)%num_processes<rank)
       local_count--;
     
-    hsize_t stride=nest::Communicator::get_num_processes();
+    hsize_t stride=nest::kernel().mpi_manager.get_num_processes();
     hsize_t block=1;
     
     hid_t filespace_id = H5Screate_simple (1, &count, NULL);
@@ -123,8 +123,8 @@ public:
     
     //only parameters for local nodes are needed
     std::vector< float > buffer_flt(local_count);
-    for (int i=0; i< neurons.parameter_names.size(); i++) {
-      H5Dataset dset(this, neurons.parameter_names[i]);
+    for (int i=0; i< dataset_names.size(); i++) {
+      H5Dataset dset(this, dataset_names[i]);
       H5Dread (dset.getId(), H5T_NATIVE_FLOAT, memspace_id, filespace_id, H5P_DEFAULT, &buffer_flt[0]);
       
       // hyperslab cannot be used, because neurons object can contain different datatypes than floats!!

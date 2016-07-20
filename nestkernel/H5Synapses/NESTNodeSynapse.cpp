@@ -2,7 +2,8 @@
 //#include "nmpi.h"
 #include <cstring>
 
-#include "../communicator.h"
+#include "kernel_manager.h"
+#include "vp_manager_impl.h"
 
 NESTNodeSynapse::NESTNodeSynapse()
 {}
@@ -16,13 +17,18 @@ void NESTNodeSynapse::set(const unsigned int& source_neuron, const unsigned int&
 {
   source_neuron_ = source_neuron;
   target_neuron_ = target_neuron;
-  node_id_ = target_neuron_ % nest::Communicator::get_num_processes();
+
+  const nest::index vp = nest::kernel().vp_manager.suggest_vp(target_neuron_);
+  node_id_  = nest::kernel().mpi_manager.get_process_id(vp);
+
 }
-void NESTNodeSynapse::integrateOffset(const int& offset)
+void NESTNodeSynapse::integrateMapping(const GIDCollection& gidc)
 {
-  source_neuron_ += offset;
-  target_neuron_ += offset;
-  node_id_ = target_neuron_ % nest::Communicator::get_num_processes();
+  source_neuron_ = gidc[source_neuron_];
+  target_neuron_ = gidc[target_neuron_];
+
+  const nest::index vp = nest::kernel().vp_manager.suggest_vp(target_neuron_);
+  node_id_  = nest::kernel().mpi_manager.get_process_id(vp);  
 }
 void NESTNodeSynapse::serialize(unsigned int* buf)
 {

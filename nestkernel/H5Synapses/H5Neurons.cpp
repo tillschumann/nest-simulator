@@ -2,10 +2,10 @@
 
 #include "H5Neurons.h"
 
-#include "../network.h"
-#include "../node.h"
-#include "../nestmodule.h"
-#include "../nest_names.h"
+#include "node.h"
+#include "nestmodule.h"
+#include "nest_names.h"
+#include "kernel_manager.h"
 
 #include "H5CellLoader.h"
 
@@ -16,7 +16,7 @@ H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, const Name s
   for (int i=0; i<param_names.size(); i++) { 
     neurons_.parameter_names.push_back(param_names[i]);
   }
-  const Token neuron_model = nest::NestModule::get_network().get_modeldict().lookup(model_name);
+  const Token neuron_model = nest::kernel().model_manager.get_modeldict()->lookup(model_name);
   neurons_.model_id_ = static_cast<nest::index>(neuron_model);
   
   neurons_.with_subnet = (subnet_name != "");
@@ -24,12 +24,12 @@ H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, const Name s
     neurons_.subnet_name = subnet_name.toString();
 }
 
-H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, TokenArray iparam_facts, TokenArray iparam_offsets, const Name subnet_name): first_neuron_id(0), with_scale(true)
+/*H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, TokenArray iparam_facts, TokenArray iparam_offsets, const Name subnet_name): first_neuron_id(0), with_scale(true)
 {
   for (int i=0; i<param_names.size(); i++) { 
     neurons_.parameter_names.push_back(param_names[i]);
   }
-  const Token neuron_model = nest::NestModule::get_network().get_modeldict().lookup(model_name);
+  const Token neuron_model = nest::kernel().model_manager.get_modeldict()->lookup(model_name);
   neurons_.model_id_ = static_cast<nest::index>(neuron_model);
   
   neurons_.with_subnet = (subnet_name != "");
@@ -44,17 +44,30 @@ H5Neurons::H5Neurons(const Name model_name, TokenArray param_names, TokenArray i
   param_offsets.resize(neurons_.parameter_names.size(), 0.);
   for (int i=0; i<iparam_offsets.size(); i++)
     param_offsets[i] = iparam_offsets[i];
+}*/
+
+
+void H5Neurons::addKernel(std::string name, TokenArray params)
+{
+	if (name == "add") {
+		std::vector<float> v(params.size());
+		for (int i=0; i<params.size(); i++)
+			v[i] = params[i];
+		kernel.push_back< kernel_add<float> >(v);
+	}
+	if (name == "multi") {
+		std::vector<float> v(params.size());
+		for (int i=0; i<params.size(); i++)
+			v[i] = params[i];
+		kernel.push_back< kernel_multi<float> >(v);
+	}
 }
 
-void H5Neurons::addConstant(std::string name, const double value)
-{
-  const_params.push_back(ParameterValue(name, value));
-}
 
-void H5Neurons::import(const std::string& filename)
+void H5Neurons::import(const std::string& filename, TokenArray dataset_names)
 {
-  int rank = nest::Communicator::get_rank();
-  int size = nest::Communicator::get_num_processes();
+  int rank = nest::kernel().mpi_manager.get_rank();
+  int size = nest::kernel().mpi_manager.get_num_processes();
   
   H5CellLoader cellLoader(filename);
   
@@ -68,10 +81,14 @@ void H5Neurons::import(const std::string& filename)
   }
   
   //the id of the fist new created neuron
-  nest::index first_neuron = nest::NestModule::get_network().size();
+  nest::index first_neuron = nest::kernel().node_manager.size();
   
+  std::vector<std::string> datasets;
+  for (int i=0; i<dataset_names.size(); i++)
+	  datasets.push_back(dataset_names[i]);
+
   //loads all parameters for the local neurons based on NEST neuron distribution
-  cellLoader.loadLocalParameters(numberOfNeurons, first_neuron, neurons_);
+  cellLoader.loadLocalParameters(datasets, numberOfNeurons, first_neuron, neurons_);
   CreateNeurons();
 }
 
@@ -100,9 +117,9 @@ void H5Neurons::CreateSubnets()
   if (n_newSubnets>0) {
     //create subnets:
     const std::string sub_modname = "subnet"; //
-    const Token sub_model = nest::NestModule::get_network().get_modeldict().lookup(sub_modname);
+    const Token sub_model = nest::kernel().model_manager.get_modeldict()->lookup(sub_modname);
     const nest::index sub_model_id = static_cast<nest::index>(sub_model);  
-    const long sub_last_node_id = nest::NestModule::get_network().add_node(sub_model_id, n_newSubnets);
+    const long sub_last_node_id = nest::kernel().node_manager.add_node(sub_model_id, n_newSubnets);
     
     //fill subnet map with nest ids
     nest::index first_sub = sub_last_node_id - n_newSubnets+1;
@@ -137,44 +154,41 @@ void H5Neurons::CreateNeurons()
   
   //jump to main network
   nest::index current_subnet=0;
-  nest::NestModule::get_network().go_to(current_subnet);
+  nest::kernel().node_manager.go_to(current_subnet);
 
   int last_index=0;
   if (neurons_.with_subnet) {
     for (int i=0;i<non;i++) {
       if (current_subnet!=neurons_[i].subnet_) {
-	if (i>last_index) // only the case if first neuron is not 0 subnet
-	  nest::NestModule::get_network().add_node(neurons_.model_id_, i-last_index);
-	current_subnet=neurons_.getSubnet(i);
-	last_index=i;
-	
-	//jump to subnetwork
-	nest::NestModule::get_network().go_to(subnetMap_[neurons_[i].subnet_]);
+		if (i>last_index) // only the case if first neuron is not 0 subnet
+			nest::kernel().node_manager.add_node(neurons_.model_id_, i-last_index);
+		current_subnet=neurons_.getSubnet(i);
+		last_index=i;
+
+		//jump to subnetwork
+		nest::kernel().node_manager.go_to(subnetMap_[neurons_[i].subnet_]);
       }
     }    
   }
   
   //if there are no subnets all neurons are created continously
   //else the command creates the neurons for the last entries with same subnet
-  const nest::index last_neuron_id = nest::NestModule::get_network().add_node(neurons_.model_id_, non-last_index);
+  const nest::index last_neuron_id = nest::kernel().node_manager.add_node(neurons_.model_id_, non-last_index);
   first_neuron_id = last_neuron_id - non +1;
 
   //set parameters of created neurons
   //ids of neurons are continously even though they might be in different subnets
   for (int i=0;i<non;i++) {
-    nest::Node* node = nest::NestModule::get_network().get_node(first_neuron_id+i);
-    if (nest::NestModule::get_network().is_local_node(node))
+    nest::Node* node = nest::kernel().node_manager.get_node(first_neuron_id+i);
+    if (nest::kernel().node_manager.is_local_node(node))
     {
       DictionaryDatum d( new Dictionary );
-      if (with_scale)
+
+
+      std::vector<float> values(neurons_[i].parameter_values_, neurons_[i].parameter_values_+neurons_.parameter_names.size());
+      values = kernel(values);
 	for (int j=0; j<neurons_.parameter_names.size(); j++)
- 	  def< double_t >( d, neurons_.parameter_names[j], neurons_.getParameter(i, j) * param_facts[j] + param_offsets[j] );
-      else
-	for (int j=0; j<neurons_.parameter_names.size(); j++)
-	  def< double_t >( d, neurons_.parameter_names[j], neurons_.getParameter(i, j) );
-	
-      for (int j=0; j<const_params.size(); j++)
-	def< double_t >( d, const_params[j].name, const_params[j].value );      
+ 	  def< double_t >( d, neurons_.parameter_names[j], values[j] );
       
       node->set_status(d);
     }

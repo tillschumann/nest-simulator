@@ -29,7 +29,7 @@ public:
   std::vector< float > neuron_parameters_;
   std::vector< int > subsets_;
   
-  nest::index model_id_;
+  int model_id_;
   std::vector < std::string > parameter_names;
   
   bool with_subnet;
