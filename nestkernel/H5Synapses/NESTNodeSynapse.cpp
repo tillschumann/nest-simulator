@@ -1,8 +1,8 @@
 #include "NESTNodeSynapse.h"
-#include "nmpi.h"
+//#include "nmpi.h"
 #include <cstring>
 
-#include "communicator.h"
+#include "../communicator.h"
 
 NESTNodeSynapse::NESTNodeSynapse()
 {}
@@ -18,15 +18,18 @@ void NESTNodeSynapse::set(const unsigned int& source_neuron, const unsigned int&
   target_neuron_ = target_neuron;
   node_id_ = target_neuron_ % nest::Communicator::get_num_processes();
 }
+void NESTNodeSynapse::integrateOffset(const int& offset)
+{
+  source_neuron_ += offset;
+  target_neuron_ += offset;
+  node_id_ = target_neuron_ % nest::Communicator::get_num_processes();
+}
 void NESTNodeSynapse::serialize(unsigned int* buf)
 {
   buf[0] = source_neuron_;
   buf[1] = target_neuron_;
   buf[2] = node_id_;
-  
-  //memcpy(buf+3, &source_neuron_coords.x_, sizeof(double));
-  //memcpy(buf+5, &source_neuron_coords.y_, sizeof(double));
-  //memcpy(buf+7, &source_neuron_coords.z_, sizeof(double));
+  memcpy(&buf[3], &prop_values_[0], 5*sizeof(double));
 }
 void NESTNodeSynapse::deserialize(unsigned int* buf)
 {
@@ -34,9 +37,7 @@ void NESTNodeSynapse::deserialize(unsigned int* buf)
   target_neuron_ = buf[1];
   node_id_ = buf[2];
   
-  //memcpy(&source_neuron_coords.x_, buf+3, sizeof(double));
-  //memcpy(&source_neuron_coords.y_, buf+5, sizeof(double));
-  //memcpy(&source_neuron_coords.z_, buf+7, sizeof(double));
+  memcpy(&prop_values_[0], &buf[3], 5*sizeof(double));
 }
 bool NESTNodeSynapse::operator<(const NESTNodeSynapse& rhs) const
 {

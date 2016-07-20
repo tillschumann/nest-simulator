@@ -1,92 +1,57 @@
 #include <vector>
 #include <deque>
-#include "nmpi.h"
+//#include "nmpi.h"
 #include "NESTNodeSynapse.h"
+#include <map>
 
-#include "H5SynMEMPedictor.h"
+#include <omp.h>
 
-#include "HDF5Mike.h"
+//#include "H5SynMEMPedictor.h"
+#include "dictdatum.h"
+#include "H5SynapseLoader.h"
 
 #ifndef H5Synapses_CLASS
 #define H5Synapses_CLASS
 
-//void NESTConnect(std::vector<NESTNodeSynapse>& synapses);
-//void NESTCreateNeurons(const int& non);
-
 enum CommunicateSynapses_Status {NOCOM,SEND, RECV, SENDRECV, UNSET};
-
 
 /**
  * H5Synapses - load Synapses from HDF5 and distribute to nodes
  * 
  */
 
-template<class T>
-class GIDVector: public std::vector<T> 
-{
-private:
-  int offset_;
-  
-public:
-  GIDVector(): offset_(0)
-  {}
-  
-  T& operator[] (int ix)
-  {
-    return std::vector<T>::operator[](ix+offset_);
-  }
-  
-  void setOffset(const int& offset)
-  {
-    offset_ = offset;
-  }
-};
-
 class H5Synapses
 {
 private:
-  GIDVector<char> neuron_type_;
+  omp_lock_t tokenLock;
   
-  GIDVector<Coords> neurons_pos_;
+  uint32_t neuron_id_offset_;
+  
+  //TraceLogger tracelogger;
   
   
-  uint32_t numberOfNeurons;
+  std::vector<double> param_offset;
   
-  TraceLogger tracelogger;
+  std::vector<std::string> synparam_names;
   
-  H5SynMEMPredictor memPredictor;
+  size_t stride_;
+
+  //H5SynMEMPredictor memPredictor;
   
-  struct SynapseModelProperties
-  {
-    nest::index synmodel_id; // NEST reference
-    double min_delay; // 
-    double C_delay;
-    
-    inline double get_delay_from_distance(const double& distance) const
-    {
-      const double delay = distance * C_delay;
-      if (delay > min_delay)
-	return delay;
-      else
-	return min_delay;
-    }
-  };
-  SynapseModelProperties* synmodel_props;
+  NESTSynapseList synapses_;
   
-  void CreateNeurons(const uint32_t& non);
+  void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses/*, nestio::Stopwatch::timestamp_t& connect_dur*/);
+  void ConnectNeurons(uint64_t& n_conSynapses);
+  uint64_t threadConnectNeurons(uint64_t& n_conSynapses);
   
-  void singleConnect(const NESTNodeSynapse& synapse, nest::Node* const target_node, const nest::thread target_thread, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur);
-  
-  void ConnectNeurons(const std::deque<NESTNodeSynapse>& synapses, uint64_t& n_conSynapses);
-  void threadConnectNeurons(const std::deque<NESTNodeSynapse>& synapses, uint64_t& n_conSynapses);
-  
-  void freeSynapses(std::deque<NESTNodeSynapse>& synapses);
-  CommunicateSynapses_Status CommunicateSynapses(std::deque<NESTNodeSynapse>& synapses);
+  void freeSynapses();
+  CommunicateSynapses_Status CommunicateSynapses();
   
 public:
-  H5Synapses();
+  H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names,TokenArray synparam_names, TokenArray synparam_facts, TokenArray synparam_offset);
   ~H5Synapses();
-  void run(const std::string& con_dir, const std::string& hdf5_coord_file);
+  void import(const std::string& syn_filename, const nest::index num_syanpses_per_process=0, const nest::index last_total_synapse=0);
+  void setStride(size_t stride);
 };
 
 #endif

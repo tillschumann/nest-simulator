@@ -23,18 +23,22 @@
 #ifndef IAF_PSC_ALPHA_CANON_H
 #define IAF_PSC_ALPHA_CANON_H
 
+// C++ includes:
+#include <vector>
+
+// Generated includes:
 #include "config.h"
 
-#include "nest.h"
-#include "event.h"
-#include "node.h"
-#include "ring_buffer.h"
-#include "slice_ring_buffer.h"
+// Includes from nestkernel:
+#include "archiving_node.h"
 #include "connection.h"
-
+#include "event.h"
+#include "nest_types.h"
+#include "ring_buffer.h"
 #include "universal_data_logger.h"
 
-#include <vector>
+// Includes from precise:
+#include "slice_ring_buffer.h"
 
 /*BeginDocumentation
 Name: iaf_psc_alpha_canon - Leaky integrate-and-fire neuron
@@ -98,9 +102,11 @@ The following parameters can be set in the status dictionary.
                         0-none, 1-linear, 2-quadratic, 3-cubic
 
 Remarks:
-  tau_m != tau_syn is required by the current implementation to avoid a
-  degenerate case of the ODE describing the model [1]. For very similar values,
-  numerics will be unstable.
+If tau_m is very close to tau_syn_ex or tau_syn_in, the model
+will numerically behave as if tau_m is equal to tau_syn_ex or
+tau_syn_in, respectively, to avoid numerical instabilities.
+For details, please see IAF_Neruons_Singularity.ipynb in
+the NEST source code (docs/model_details).
 
 References:
 [1] Morrison A, Straube S, Plesser H E, & Diesmann M (2006) Exact Subthreshold
@@ -132,11 +138,8 @@ namespace nest
  * from this one.
  * @todo Implement current input in consistent way.
  */
-class iaf_psc_alpha_canon : public Node
+class iaf_psc_alpha_canon : public Archiving_Node
 {
-
-  class Network;
-
 public:
   /** Basic constructor.
       This constructor should only be used by GenericModel to create
@@ -155,7 +158,8 @@ public:
 
   /**
    * Import sets of overloaded virtual functions.
-   * @see Technical Issues / Virtual Functions: Overriding, Overloading, and Hiding
+   * @see Technical Issues / Virtual Functions: Overriding, Overloading, and
+   * Hiding
    */
   using Node::handle;
   using Node::handles_test_event;
@@ -197,8 +201,8 @@ private:
    * advanced from event to event, as retrieved from the spike queue.
    *
    * Return from refractoriness is handled as a special event in the
-   * queue, which is marked by a weight that is GSL_NAN.  This greatly simplifies
-   * the code.
+   * queue, which is marked by a weight that is GSL_NAN.  This greatly
+   * simplifies the code.
    *
    * For steps, during which no events occur, the precomputed propagator matrix
    * is used.  For other steps, the propagator matrix is computed as needed.
@@ -209,8 +213,6 @@ private:
   void update( Time const& origin, const long_t from, const long_t to );
 
   //@}
-
-  void set_spiketime( Time const& );
 
   /**
    * Propagate neuron state.
@@ -230,7 +232,10 @@ private:
    * @param t0      Beginning of mini-timestep
    * @param dt      Duration of mini-timestep
    */
-  void emit_spike_( Time const& origin, const long_t lag, const double_t t0, const double_t dt );
+  void emit_spike_( Time const& origin,
+    const long_t lag,
+    const double_t t0,
+    const double_t dt );
 
   /**
    * Instantaneously emit a spike at the precise time defined by
@@ -240,7 +245,9 @@ private:
    * @param lag           Time step within slice
    * @param spike_offset  Time offset for spike
    */
-  void emit_instant_spike_( Time const& origin, const long_t lag, const double_t spike_offset );
+  void emit_instant_spike_( Time const& origin,
+    const long_t lag,
+    const double_t spike_offset );
 
   /** @name Threshold-crossing interpolation
    * These functions determine the time of threshold crossing using
@@ -313,8 +320,8 @@ private:
     double_t U_min_;
 
     /** Reset potential.
-              At threshold crossing, the membrane potential is reset to this value.
-              Relative to resting potential.
+              At threshold crossing, the membrane potential is reset to this
+              value. Relative to resting potential.
      */
     double_t U_reset_;
 
@@ -396,9 +403,9 @@ private:
     double_t P30_;             //!< progagator matrix elem, 3rd row
     double_t P31_;             //!< progagator matrix elem, 3rd row
     double_t P32_;             //!< progagator matrix elem, 3rd row
-    double_t y0_before_;       //!< y0_ at beginning of mini-step, forinterpolation
-    double_t y2_before_;       //!< y2_ at beginning of mini-step, for interpolation
-    double_t y3_before_;       //!< y3_ at beginning of mini-step, for interpolation
+    double_t y0_before_; //!< y0_ at beginning of mini-step, forinterpolation
+    double_t y2_before_; //!< y2_ at beginning of mini-step, for interpolation
+    double_t y3_before_; //!< y3_ at beginning of mini-step, for interpolation
   };
 
   // Access functions for UniversalDataLogger -------------------------------
@@ -444,7 +451,10 @@ private:
 };
 
 inline port
-nest::iaf_psc_alpha_canon::send_test_event( Node& target, rport receptor_type, synindex, bool )
+nest::iaf_psc_alpha_canon::send_test_event( Node& target,
+  rport receptor_type,
+  synindex,
+  bool )
 {
   SpikeEvent e;
   e.set_sender( *this );
@@ -468,7 +478,8 @@ iaf_psc_alpha_canon::handles_test_event( CurrentEvent&, rport receptor_type )
 }
 
 inline port
-iaf_psc_alpha_canon::handles_test_event( DataLoggingRequest& dlr, rport receptor_type )
+iaf_psc_alpha_canon::handles_test_event( DataLoggingRequest& dlr,
+  rport receptor_type )
 {
   if ( receptor_type != 0 )
     throw UnknownReceptorType( receptor_type, get_name() );
@@ -480,6 +491,8 @@ iaf_psc_alpha_canon::get_status( DictionaryDatum& d ) const
 {
   P_.get( d );
   S_.get( d, P_ );
+  Archiving_Node::get_status( d );
+
   ( *d )[ names::recordables ] = recordablesMap_.get_list();
 }
 
@@ -490,6 +503,12 @@ iaf_psc_alpha_canon::set_status( const DictionaryDatum& d )
   const double delta_EL = ptmp.set( d ); // throws if BadProperty
   State_ stmp = S_;                      // temporary copy in case of errors
   stmp.set( d, ptmp, delta_EL );         // throws if BadProperty
+
+  // We now know that (ptmp, stmp) are consistent. We do not
+  // write them back to (P_, S_) before we are also sure that
+  // the properties to be set in the parent class are internally
+  // consistent.
+  Archiving_Node::set_status( d );
 
   // if we get here, temporaries contain consistent set of properties
   P_ = ptmp;

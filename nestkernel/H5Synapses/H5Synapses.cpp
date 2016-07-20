@@ -1,23 +1,24 @@
 #include "H5Synapses.h"
 
 #include <iostream>      
-#include "nmpi.h"
+//#include "nmpi.h"
 #include <algorithm> 
 #include <sstream>
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
-#include "timer/stopwatch.h"
+//#include "timer/stopwatch.h"
 
-#include "network.h"
+#include "kernel_manager.h"
 #include "node.h"
 #include "nestmodule.h"
+#include "exceptions.h"
 
 #include "nest_names.h"
 
-#include "poisson_randomdev.h"
+//#include "poisson_randomdev.h"
 
-#include "communicator.h"
+//#include "communicator.h"
 
 #include <stdio.h>
 
@@ -25,164 +26,222 @@
 #include <spi/include/kernel/memory.h>
 #endif
 
+#include <algorithm>
+
+#ifdef SCOREP_USER_ENABLE
+#ifndef SCOREP_COMPILE
+#define SCOREP_COMPILE
+#endif
+#include <scorep/SCOREP_User.h>
+#endif
 
 #define _DEBUG_MODE 1
 
-/*
- * 
- * 
- */
-void H5Synapses::CreateNeurons(const uint32_t& non)
-{
-  // check if possible
-  // 
-  if (memPredictor.preNESTCreate(non)==0)
-  {
-    const std::string modname = "aeif_cond_exp";
-    const Token model = nest::NestModule::get_network().get_modeldict().lookup(modname);      
-    // create
-    const nest::index model_id = static_cast<nest::index>(model);
-  
-    nest::NestModule::get_network().add_node(model_id, non); 
-  
-    neuron_type_.resize(non, 0);
-    
-    // access NEST random generator
-    librandom::RngPtr grng = nest::NestModule::get_network().get_grng();
-    librandom::PoissonRandomDev poisson(grng, 0.16251892949777494);
-    
-    uint32_t i=(uint32_t)poisson(); // +1 NEST offset
-    while (i<non)
-    {
-      neuron_type_[i]=1;
-      i+=1+(uint32_t)poisson(); 
-    }
-    
-    uint32_t non_ex=0;
-    uint32_t non_in=0;
-    for (i=0; i<non; i++)
-      if (neuron_type_[i]==1)
-	non_ex++;
-      else
-	non_in++;
-      
-    std::cout << "CreateNeurons \trank= " << nest::Communicator::get_rank() << "\tnon_ex=" << non_ex << "\tnon_in=" << non_in << "\n";  
-  }
-}
 
-void H5Synapses::singleConnect(const NESTNodeSynapse& synapse, nest::Node* const target_node, const nest::thread target_thread, uint64_t& n_conSynapses, nestio::Stopwatch::timestamp_t& connect_dur)
+void H5Synapses::singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id, nest::Node* const target_node, const nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses/*, nestio::Stopwatch::timestamp_t& connect_dur*/)
 {
   nest::index source = synapse.source_neuron_;
   
-  
-  // check whether the target is on this process
-  if (nest::NestModule::get_network().is_local_node(target_node))
-  {
-    // calculate delay of synapse:
-    Coords& s = neurons_pos_[source];
-    Coords& t = neurons_pos_[target_node->get_gid()];
+  // check whether the target is on this process 
+  if (nest::kernel().node_manager.is_local_node(target_node)) {
+    //nestio::Stopwatch::timestamp_t begin= nestio::Stopwatch::get_timestamp(); 
     
-    const double distance = sqrt ( (s.x_-t.x_)*(s.x_-t.x_) + (s.y_-t.y_)*(s.y_-t.y_) + (s.z_-t.z_)*(s.z_-t.z_) );
+    for (int i=2; i<synapses_.prop_names.size(); i++) {
+      double value = synapse.prop_values_ [i] * synapses_.prop_facts[i] + param_offset[i];
+      setValue<double_t>( *v_ptr[i], value );
+    }
     
-    //nest::index synmodel_id;
+    synapse.prop_values_ [0] *= synapses_.prop_facts[0];
+    synapse.prop_values_ [0] += param_offset[0];
+
+    synapse.prop_values_ [1] *= synapses_.prop_facts[1];
+    synapse.prop_values_ [1] += param_offset[1];
+
+
+    nest::NestModule::get_network().connect(source, target_node, target_thread, synmodel_id, d, synapse.prop_values_ [0], synapse.prop_values_ [1]);
     
-    //set synapse type and check for delay boundary
-    
-      // current selection of synapse is based on source neuron
-      SynapseModelProperties& synmodel_prop = synmodel_props[neuron_type_[source]];
-         
-      //if (target_thread != section_ptr)
-	//std::cout << "ConnectNeurons thread Ouups!!" << "\n";
-      
-      nestio::Stopwatch::timestamp_t begin= nestio::Stopwatch::get_timestamp();
-    
-      nest::NestModule::get_network().connect(source, target_node, target_thread, synmodel_prop.synmodel_id, synmodel_prop.get_delay_from_distance(distance));
-      n_conSynapses++;
-      
-     
-      begin = nestio::Stopwatch::get_timestamp() - begin;
-      if (begin > 0)
-	connect_dur+= begin;
+    //begin = nestio::Stopwatch::get_timestamp() - begin;
+    //if (begin > 0)
+    //  connect_dur+= begin;  
+    n_conSynapses++;
   }
   else
   {
-    std::cout << "singleConnect Ouups!!" << "\n";
+    throw nest::IllegalConnection("H5Synapses::singleConnect(): synapse is on wrong node");
   }
 }
 
-void H5Synapses::threadConnectNeurons(const std::deque<NESTNodeSynapse>& synapses, uint64_t& n_conSynapses)
+uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 {
-  const int& num_processes = nest::Communicator::get_num_processes();
-  const int& num_vp = nest::Communicator::get_num_virtual_processes(); 
+#ifdef SCOREP_COMPILE 
+  SCOREP_USER_REGION("connect", SCOREP_USER_REGION_TYPE_FUNCTION)
+#endif
+  const int rank = nest::Communicator::get_rank();
+  const int num_processes = nest::Communicator::get_num_processes();
+  const int num_vp = nest::Communicator::get_num_virtual_processes(); 
+  uint64_t n_conSynapses_sum=0;
+  uint64_t n_conSynapses_max=0;
+
+ 
   
-  uint64_t n_conSynapses_tmp=0;
-  
-  if (memPredictor.preNESTConnect(synapses.size())==0)
+  uint64_t shared, persist, heapavail, stackavail, stack, heap, guard, mmap;
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_SHARED, &shared);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_PERSIST, &persist);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAPAVAIL, &heapavail);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_STACKAVAIL, &stackavail);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_STACK, &stack);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAP, &heap);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_GUARD, &guard);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_MMAP, &mmap);
+    
+    std::stringstream ss;
+    ss << "threadConnectNeurons new_cons=" << synapses_.size();
+    //TraceLogger::print_mem(ss.str());
+
+    nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+      "H5Synapses::import",
+      String::compose("%1\trank=%2\theap=%3\ttack=%4\thavail=%5\tsavail=%6\tshared=%7\tpersist=%8\tguard=%9\tmmap=%10",
+                      ss.str(),
+                      nest::Communicator::get_rank(),
+                      (double)(heap)/(1024*1024),
+                      (double)(stack)/(1024*1024),
+                      (double)heapavail/(1024*1024),
+                      (double)stackavail/(1024*1024),
+                      (double)shared/(1024*1024),
+                      (double)persist/(1024*1024),
+                      (double)guard/(1024*1024),
+                      (double)mmap/(1024*1024)));
+
+  #pragma omp parallel default(shared) reduction(+:n_conSynapses_sum) reduction(max:n_conSynapses_max)
   {
-    
-    #pragma omp parallel default(shared) reduction(+:n_conSynapses_tmp)
+    uint64_t n_conSynapses_tmp = 0;
+    //nestio::Stopwatch::timestamp_t connect_dur=0;
+    //nestio::Stopwatch::timestamp_t before_connect=nestio::Stopwatch::get_timestamp();
+    const int tid = nest::NestModule::get_network().get_thread_id();
+  
+    if (num_vp != (int)(num_processes*omp_get_num_threads()))
+      nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+	  "H5Synapses::threadConnectNeurons",
+	  String::compose( "Thread number is wrong\tnest-threads=%1\topenmp-threads=%2",
+			      num_vp, (int)(num_processes*omp_get_num_threads())) );
+  
+    //without preprocessing:
+    //only connect neurons which are on local thread otherwise skip
     {
-      nestio::Stopwatch::timestamp_t connect_dur=0;
-      nestio::Stopwatch::timestamp_t before_connect=nestio::Stopwatch::get_timestamp();
+      // create DictionaryDatum in region to lock creation and deleting of Token objects
+      DictionaryDatum d( new Dictionary );
       
-      
-      const int tid = nest::NestModule::get_network().get_thread_id();
-      
-      if (num_vp != (int)(num_processes*omp_get_num_threads()))
-	std::cout << "ERROR: NEST threads " << num_vp << " are not equal to OMP threads " << omp_get_num_threads() << "\n";
-    
-      //without preprocessing:
-      //only connect neurons which are on local thread otherwise skip
-      
-      for (int i=0;i<synapses.size();i++) {
+      //create entries inside of DictionaryDatum and store references to Token objects
+      std::vector<const Token*> v_ptr(synapses_.prop_names.size());
+      omp_set_lock(&tokenLock);
+      for (int i=2; i<synapses_.prop_names.size(); i++) {
+	def< double_t >( d, synparam_names[i], param_offset[i]  );
+	const Token& token_ref = d->lookup2( synparam_names[i] );
+	v_ptr[i] = &token_ref;
+      }
+      omp_unset_lock(&tokenLock);
 	
-	const nest::index target = synapses[i].target_neuron_;
-	
-	nest::Node* const target_node = nest::NestModule::get_network().get_node(target);
-	const nest::thread target_thread = target_node->get_thread();
-	
-	if (target_thread == tid)  // ((synapses[i].target_neuron_ % num_vp) / num_processes == section_ptr) // synapse belongs to local thread, connect function is thread safe for this condition
+    int stride_c=0;
+
+    for (int i=0;i<synapses_.size();i++) {
+	const nest::index target = synapses_[i].target_neuron_;
+	try
 	{
-	  singleConnect(synapses[i], target_node, target_thread, n_conSynapses_tmp, connect_dur);
+	  nest::Node* const target_node = nest::NestModule::get_network().get_node(target);
+	  const nest::thread target_thread = target_node->get_thread();
+	  
+	  if (target_thread == tid)  // ((synapses_[i].target_neuron_ % num_vp) / num_processes == section_ptr) // synapse belongs to local thread, connect function is thread safe for this condition
+	  {
+		stride_c++;
+		if (stride_c==1) {
+			singleConnect(synapses_[i], synapses_.synmodel_id_, target_node, target_thread, d, v_ptr, n_conSynapses_tmp/*, connect_dur*/);
+		}
+		if (stride_c>=stride_) {
+			stride_c = 0;
+	    }
+	  }
+	}
+	catch (nest::UnknownNode e)
+	{
+	  nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+	    "H5Synapses::threadConnectNeurons",
+	    String::compose( "UnknownNode\trank=%1\t%2",
+				rank, e.message()) );
+	}
+	catch (nest::IllegalConnection e)
+	{
+	  nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+	    "H5Synapses::threadConnectNeurons",
+	    String::compose( "IllegalConnection\trank=%1\t%2",
+				rank, e.message()) );
+	}
+	catch (nest::KernelException e)
+	{
+	  nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+	    "H5Synapses::threadConnectNeurons",
+	    String::compose( "KernelException\trank=%1\t%2",
+				rank, e.message()) );
 	}
       }
-      tracelogger.store(tid,"nest::connect", before_connect, connect_dur);
-    }
-    std::stringstream ss;
-    ss << "threadConnectNeurons new_cons=" << synapses.size();
-    TraceLogger::print_mem(ss.str());  
+      //tracelogger.store(tid,"nest::connect", before_connect, connect_dur);
+      omp_set_lock(&tokenLock);
+    }  // lock closing braket to serialize object destroying
+    omp_unset_lock(&tokenLock);
+
+    n_conSynapses_sum += n_conSynapses_tmp;
+    n_conSynapses_max = n_conSynapses_tmp;
   }
-  
-  n_conSynapses += n_conSynapses_tmp;
+  n_conSynapses += n_conSynapses_sum;
+  return n_conSynapses;
 }
 
-void H5Synapses::ConnectNeurons(const std::deque<NESTNodeSynapse>& synapses, uint64_t& n_conSynapses)
+void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
 {
   int num_processes = nest::Communicator::get_num_processes();  
   
-  nestio::Stopwatch::timestamp_t connect_dur=0;
-  nestio::Stopwatch::timestamp_t before_connect=nestio::Stopwatch::get_timestamp();
+  //nestio::Stopwatch::timestamp_t connect_dur=0;
+  //nestio::Stopwatch::timestamp_t before_connect=nestio::Stopwatch::get_timestamp();
   
-  if (memPredictor.preNESTConnect(synapses.size())==0)
+  //omp_init_lock(&tokenLock);
+  
   {
-    for (int i=0; i< synapses.size(); i++) {
-      const nest::index target = synapses[i].target_neuron_;
-      nest::Node* const target_node = nest::NestModule::get_network().get_node(target);
-      const nest::thread target_thread = target_node->get_thread();
-      
-      
-      singleConnect(synapses[i], target_node, target_thread, n_conSynapses, connect_dur);
-    }
-  
-    tracelogger.store(0,"nest::connect", before_connect, connect_dur);
+    DictionaryDatum d( new Dictionary );
+	
+	//new Token is not thread-safe
+    //mutex easiest workaround
+    omp_set_lock(&tokenLock);
+    for (int i=2; i<synapses_.prop_names.size(); i++)
+      def< double_t >( d, synparam_names[i], param_offset[i]  );
+    omp_unset_lock(&tokenLock);
+    
+    //if (memPredictor.preNESTConnect(synapses_.size())==0)
+    //{
+      for (int i=0; i< synapses_.size(); i++) {
+	const nest::index target = synapses_[i].target_neuron_;
+	nest::Node* const target_node = nest::NestModule::get_network().get_node(target);
+	const nest::thread target_thread = target_node->get_thread();
+	
+	
+	//singleConnect(synapses_[i], synapses_.synmodel_id_, target_node, target_thread, d, , n_conSynapses, connect_dur);
+      }
+      omp_set_lock(&tokenLock);
   }
+  omp_unset_lock(&tokenLock);
+  
+  //tracelogger.store(0,"nest::connect", before_connect, connect_dur);
+  //}
+  //omp_destroy_lock(&tokenLock);
 }
 
 /**
- * 
+ *  Communicate Synpases between the nodes
+ *  Aftewards all synapses are on their target nodes
  */
-CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSynapse>& synapses)
+CommunicateSynapses_Status H5Synapses::CommunicateSynapses()
 {
+#ifdef SCOREP_COMPILE
+  SCOREP_USER_REGION("alltoall", SCOREP_USER_REGION_TYPE_FUNCTION)
+#endif
   uint32_t num_processes = nest::Communicator::get_num_processes();
   
   std::stringstream sstream;
@@ -194,19 +253,19 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
     rdispls[i]=-999;
   }
   
-  uint32_t* send_buffer = new uint32_t[synapses.size()*3];
+  uint32_t* send_buffer = new uint32_t[synapses_.size()*synapses_.entry_size_int()];
   
   uint32_t* ptr_send_buffer=send_buffer;
-  for (uint32_t i=0; i<synapses.size(); i++) {
-    NESTNodeSynapse& syn = synapses[i];
-    sendcounts[syn.node_id_]+=3;
+  for (uint32_t i=0; i<synapses_.size(); i++) {
+    NESTNodeSynapse& syn = synapses_[i];
+    sendcounts[syn.node_id_]+=synapses_.entry_size_int();
     syn.serialize(ptr_send_buffer);
-    ptr_send_buffer+=3;
+    ptr_send_buffer+=synapses_.entry_size_int();
   }
   
-  tracelogger.begin(0, "mpi wait");
+  //tracelogger.begin(0, "mpi wait"); 
   MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
-  tracelogger.end(0, "mpi wait");
+  //tracelogger.end(0, "mpi wait");
   
   rdispls[0] = 0;
   sdispls[0] = 0;
@@ -215,7 +274,7 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
     rdispls[i] = rdispls[i-1] + recvcounts[i-1];
   }  
   
-  const int32_t recv_synpases_count = rdispls[num_processes]/3;
+  const int32_t recv_synpases_count = rdispls[num_processes]/synapses_.entry_size_int();
   
   
   //implement check if recv counts does not fit in memory??
@@ -225,18 +284,15 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
   MPI_Alltoallv(send_buffer, sendcounts, sdispls, MPI_UNSIGNED, recvbuf, recvcounts, rdispls, MPI_UNSIGNED, MPI_COMM_WORLD);
   delete[] send_buffer;
   
-  //std::vector<NESTNodeSynapse> own_synapses(recv_synpases_count);  
-  //synapses.swap(own_synapses);
-  
   
   //fill deque with recevied entries
-  synapses.resize(recv_synpases_count); 
+  synapses_.resize(recv_synpases_count); 
   
   uint32_t* ptr_recv_buffer=recvbuf;
-  for (uint32_t i=0; i<synapses.size(); i++) {
-    NESTNodeSynapse& syn = synapses[i];
+  for (uint32_t i=0; i<synapses_.size(); i++) {
+    NESTNodeSynapse& syn = synapses_[i];
     syn.deserialize(ptr_recv_buffer);
-    ptr_recv_buffer+=3;
+    ptr_recv_buffer+=synapses_.entry_size_int();
   }
   delete[] recvbuf;
 
@@ -244,140 +300,152 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses(std::deque<NESTNodeSy
     return SENDRECV;
   else if (sdispls[num_processes]>0)
     return SEND;
-  else if (rdispls[num_processes]>0)
+  else if (rdispls[num_processes-1]>0)
     return RECV;
   else
     return NOCOM;
 }
 
-H5Synapses::H5Synapses()
-{
-  //create synapse model SynapseModelProperties
+/**
+ * 
+ */
+H5Synapses::H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names, TokenArray isynparam_names, TokenArray synparam_facts, TokenArray synparam_offset)
+: neuron_id_offset_(offset), stride_(1)
+{  
+  //assert (synapses_.prop_names.size() >=  synapses_.prop_facts.size())
+  omp_init_lock(&tokenLock);
   
-  synmodel_props = new SynapseModelProperties[2];
   
-  //for loop is comming soon ;)
-  //synapses should be stored in a list - maybe from hdf5 files or from sli script - both fine
-  {
-    const Token synmodel = nest::NestModule::get_network().get_synapsedict().lookup("syn_in");
-    synmodel_props[0].synmodel_id = static_cast<nest::index>(synmodel);
-    synmodel_props[0].min_delay = 0.4;
-    synmodel_props[0].C_delay = 0.001;
+  for (int i=0; i<hdf5_names.size(); i++) {
+    synparam_names.push_back(isynparam_names[i]);
+    synapses_.prop_names.push_back(hdf5_names[i]);
   }
-  {
-    const Token synmodel = nest::NestModule::get_network().get_synapsedict().lookup("syn_ex");
-    synmodel_props[1].synmodel_id = static_cast<nest::index>(synmodel);
-    synmodel_props[1].min_delay = 0.75;
-    synmodel_props[1].C_delay = 0.001;
-  }
+  
+  synapses_.prop_facts.resize(synapses_.prop_names.size(), 1.);
+  
+  for (int i=0; i<synparam_facts.size(); i++)
+    synapses_.prop_facts[i] = synparam_facts[i];
+  
+  
+  param_offset.resize(synapses_.prop_names.size(), 0.);
+  
+  for (int i=0; i<synparam_offset.size(); i++)
+   param_offset[i] = synparam_offset[i];  
+
+  const Token synmodel = nest::NestModule::get_network().get_synapsedict().lookup(synmodel_name);
+  synapses_.synmodel_id_ = static_cast<nest::index>(synmodel);
 }
 
 H5Synapses::~H5Synapses()
 {
-  delete[] synmodel_props;
+  omp_destroy_lock(&tokenLock);
 }
 
-void H5Synapses::freeSynapses(std::deque<NESTNodeSynapse>& synapses)
+void H5Synapses::freeSynapses()
 {
-  //std::deque<NESTNodeSynapse> empty_synapses_vec(0);
-  //empty_synapses_vec.reserve(synapses.size());
-  //synapses.swap(empty_synapses_vec);
-  
-  synapses.clear();
+#ifdef SCOREP_COMPILE
+  SCOREP_USER_REGION("free", SCOREP_USER_REGION_TYPE_FUNCTION)
+#endif
+  synapses_.clear();
 }
 
-void H5Synapses::run(const std::string& con_dir, const std::string& hdf5_coord_file)
+void H5Synapses::import(const std::string& syn_filename, const nest::index num_syanpses_per_process, const nest::index last_total_synapse)
 {
   int rank = nest::Communicator::get_rank();
   int size = nest::Communicator::get_num_processes();
-  
-  std::cout << "Start H5Synapses" << "\n";
-  std::cout << "max threads=" << omp_get_max_threads() << "\n";
     
     
-  TraceLogger::print_mem("NEST base"); 
-  if (rank==0) {
-     numberOfNeurons= HDF5Mike::getNumberOfNeurons(hdf5_coord_file.c_str());
-     HDF5Mike::loadAllNeuronCoords(hdf5_coord_file.c_str(), numberOfNeurons, neurons_pos_);
-  }
-  
-  MPI_Bcast(&numberOfNeurons, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  
-  
-  
-  if (rank>0)
-    neurons_pos_.resize(numberOfNeurons); 
-  
-  MPI_Bcast(&neurons_pos_[0], numberOfNeurons*sizeof(Coords), MPI_BYTE, 0, MPI_COMM_WORLD); 
-  TraceLogger::print_mem("with neuron pos");
-  
-  // Create Neurons
-  CreateNeurons(numberOfNeurons);
-  neurons_pos_.setOffset(-1);
-  neuron_type_.setOffset(-1);
+  //TraceLogger::print_mem("NEST base"); 
   
   // oberserver variables for validation
   // sum over all after alg has to be equal
   uint64_t n_readSynapses=0;
   uint64_t n_SynapsesInDatasets=0;
   uint64_t n_memSynapses=0;
-  
   uint64_t n_conSynapses=0;
   
-  tracelogger.begin(0,"run");
+  //tracelogger.begin(0,"run");
   
   CommunicateSynapses_Status com_status=UNSET;
-  std::deque<NESTNodeSynapse> synapses;
   
-  HDF5Mike h5Mike(con_dir,n_readSynapses,n_SynapsesInDatasets);
-  
-  
-  uint64_t nos = 1e6; 
+  H5SynapsesLoader synloader(syn_filename, synapses_.prop_names,n_readSynapses,n_SynapsesInDatasets, num_syanpses_per_process, last_total_synapse);
+  //number of synapses per iteration effects memory consumption and speed of the import module
+  //uint64_t nos = 1e6; 
   
   //load datasets from files
-  while (!h5Mike.endOfMikeFiles())
+  while (!synloader.eof())
   {
-    memPredictor.predictBestLoadNos(nos);
+    //number of synapses per iteration might be reduced if there is not enough memory available
+    //memPredictor.predictBestLoadNos(nos);
     
-    tracelogger.begin(0,"loadSynapses");
-    h5Mike.iterateOverSynapsesFromFiles(synapses, nos);      
-    tracelogger.end(0,"loadSynapses");
-      
-    tracelogger.begin(0,"sort");
-    std::sort(synapses.begin(), synapses.end());
-    tracelogger.end(0,"sort");
+    MPI_Barrier(MPI_COMM_WORLD);
     
-    tracelogger.begin(0,"communicate");
-    com_status = CommunicateSynapses(synapses);
-    tracelogger.end(0,"communicate"); 
+    //tracelogger.begin(0,"loadSynapses");   
+    {
+#ifdef SCOREP_COMPILE
+      SCOREP_USER_REGION("load", SCOREP_USER_REGION_TYPE_FUNCTION)
+#endif
+      synloader.iterateOverSynapsesFromFiles(synapses_);   
+    }
+    //tracelogger.end(0,"loadSynapses");
     
-    n_memSynapses+=synapses.size();
+    //integrate offset of ids to synapses
+    //
+    {
+#ifdef SCOREP_COMPILE
+      SCOREP_USER_REGION("det", SCOREP_USER_REGION_TYPE_FUNCTION)
+#endif
+    for (int i=0; i< synapses_.size(); i++)
+      synapses_[i].integrateOffset(neuron_id_offset_); // inverse NEST offset + csaba offset (offset to 0-indicies)
+    }
     
-    tracelogger.begin(0,"connect");
-    threadConnectNeurons(synapses, n_conSynapses);
-    tracelogger.end(0,"connect");
+    //tracelogger.begin(0,"sort");
+    {
+#ifdef SCOREP_COMPILE
+      SCOREP_USER_REGION("sort", SCOREP_USER_REGION_TYPE_FUNCTION)
+#endif
+    std::sort(synapses_.begin(), synapses_.end());
+    }
+    //tracelogger.end(0,"sort");
     
-    freeSynapses(synapses);
+    //tracelogger.begin(0,"communicate");
+    com_status = CommunicateSynapses();
+    //tracelogger.end(0,"communicate"); 
+    
+    n_memSynapses+=synapses_.size();
+    
+    //tracelogger.begin(0,"connect");
+    uint64_t n_new_con = threadConnectNeurons(n_conSynapses);
+    //tracelogger.end(0,"connect", n_new_con);
+    
+    freeSynapses();
   }
   
   //recieve datasets from other nodes
   //necessary because datasets may be distributed unbalanced
   while (com_status != NOCOM) {
-    tracelogger.begin(0,"communicate");
-    com_status = CommunicateSynapses(synapses);
-    tracelogger.end(0,"communicate");
+    //tracelogger.begin(0,"communicate");
+    com_status = CommunicateSynapses();
+    //tracelogger.end(0,"communicate");
     
-    n_memSynapses+=synapses.size();
+    n_memSynapses+=synapses_.size();
     
-    tracelogger.begin(0,"connect");
-    threadConnectNeurons(synapses, n_conSynapses);
-    tracelogger.end(0,"connect");
+    //tracelogger.begin(0,"connect");
+    threadConnectNeurons(n_conSynapses);
+    //tracelogger.end(0,"connect");
     
-    freeSynapses(synapses);
+    freeSynapses();
   }
   
-  tracelogger.end(0,"run");
+  //tracelogger.end(0,"run");
   
+  nest::NestModule::get_network().message( SLIInterpreter::M_INFO,
+      "H5Synapses::import",
+      String::compose( "rank=%1\tn_readSynapses=%2\tn_conSynapses=%3\tn_memSynapses=%4\tn_SynapsesInDatasets=%5",
+                          rank, n_readSynapses, n_conSynapses, n_memSynapses, n_SynapsesInDatasets) );
+}
 
-  std::cout << "rank="<< rank << "\tn_readSynapses=" << n_readSynapses << "\tn_conSynapses=" << n_conSynapses << "\tn_memSynapses="<< n_memSynapses<< "\tn_SynapsesInDatasets=" << n_SynapsesInDatasets <<  "\n";
+void H5Synapses::setStride(size_t stride)
+{
+	stride_ = stride;
 }
