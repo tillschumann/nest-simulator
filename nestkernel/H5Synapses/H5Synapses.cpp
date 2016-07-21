@@ -413,20 +413,25 @@ void H5Synapses::import(const std::string& syn_filename, const DictionaryDatum& 
                           rank, n_readSynapses, n_conSynapses, n_memSynapses, n_SynapsesInDatasets) );
 }
 
-void H5Synapses::setStride(size_t stride)
-{
-	stride_ = stride;
-}
-
 void H5Synapses::set_status( const DictionaryDatum& d ) {
-	GIDCollectionDatum neurons;
-
+	//use gid collection as mapping
 	if (!updateValue< GIDCollectionDatum >( d, names::neurons, neurons )) {
-
-		neurons = GIDCollectionDatum(1, );
+        const nest::index last_neuron = nest::kernel().node_manager.size();
+		neurons = GIDCollectionDatum(1, last_neuron);
 	}
-
-
+    //set stride if set, if not stride is 1
+    updateValue<size_t>(d, nest::stride, stride_);
+    
+    //add kernels
+    ArrayDatum kernels;
+    if (updateValue<ArrayDatum>(d, nest::kernels, kernels)) {
+        for (int i=0; i< kernels.size(); i++) {
+            DictionaryDatum kd = getValue< DictionaryDatum >( kernels[i] );
+            const std::string kernel_name = getValue<std::string>( kd, nest::name );
+            const std::string kernel_params = getValue<std::string>( kd, nest::name );
+            addKernel(kernel_name, kernel_params);
+        }
+    }
 }
 
 void H5Synapses::addKernel(std::string name, TokenArray params)

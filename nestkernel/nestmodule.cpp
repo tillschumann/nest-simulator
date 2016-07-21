@@ -850,27 +850,25 @@ void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
 */
 void NestModule::H5NeuronCsX_s_a_sFunction::execute(SLIInterpreter *i) const
 {
-  i->assert_stack_load(6);
+    i->assert_stack_load(4);
   
-  TokenArray cparams_names = getValue< TokenArray >( i->OStack.pick( 5 ) );
-  TokenArray cparams_values = getValue< TokenArray >( i->OStack.pick( 4 ) );
-  const Name subnet_name = getValue< std::string >( i->OStack.pick( 3 ) );
-  TokenArray param_names = getValue< TokenArray >( i->OStack.pick( 2 ) );
-  const Name model_name = getValue< std::string >( i->OStack.pick( 1 ) );
-  const std::string neuron_file = getValue<std::string>(i->OStack.pick(0));
+    const DictionaryDatum din = getValue< DictionaryDatum >( i->OStack.pick( 3 ) );
+    const TokenArray param_names = getValue< TokenArray >( i->OStack.pick( 2 ) );
+    const std::string neuron_file = getValue< std::string >(i->OStack.pick(1));
+    const Name model_name = getValue< Name >( i->OStack.pick( 0 ) );
+    
+    Name subnet_name = "";
+    updateValue<Name>(din, name::subnet_name, subnet_name);
+    
+    H5Neurons h5neurons(model_name, param_names, );
+    
+    DictionaryDatum dout( new Dictionary );
+    h5neurons.import(neuron_file, subnet_name, dout);
 
-  H5Neurons h5neurons(model_name, param_names, subnet_name);
+    i->OStack.pop(4);
   
-  
-  //for (int i=0; i<cparams_names.size(); i++)
-  //  h5neurons.addConstant(cparams_names[i], cparams_values[i]);
-  
-  h5neurons.import(neuron_file, param_names);
-
-  i->OStack.pop(6);
-  
-  i->OStack.push( h5neurons.getFirstNeuronId() );
-  i->EStack.pop();
+    i->OStack.push( dd );
+    i->EStack.pop();
 }
 
 // Connect for gidcollection gidcollection conn_spec syn_spec

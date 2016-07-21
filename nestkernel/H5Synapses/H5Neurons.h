@@ -14,35 +14,34 @@ private:
   omp_lock_t tokenLock;
   
   void CreateSubnets();
-  void CreateNeurons();
+  GIDCollectionDatum CreateNeurons();
   
   NESTNeuronList neurons_;
   
-  std::map< int, nest::index > subnetMap_;
+  //std::map< int, nest::index > subnetMap_;
   
-  
-  bool with_scale;
-  
-  std::vector<double> param_facts;
-  std::vector<double> param_offsets;
+  //std::vector<double> param_facts;
+  //std::vector<double> param_offsets;
   
   kernel_combi<float> kernel;
+    
+    std::string filename;
+    
+    std::vector< Name > model_param_names;
 
-  struct ParameterValue {
+  /*struct ParameterValue {
     std::string name;
     double value;
     ParameterValue(std::string name, double value): name(name), value(value) {};
-  };
+  };*/
   
-  std::vector<ParameterValue> const_params;
-
-  nest::index first_neuron_id;
+  //std::vector<ParameterValue> const_params;
   
 public:
   H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name);
   void import(const std::string& filename, TokenArray dataset_names);
-  void addKernel(std::string name, TokenArray params);
+  void addKernel(const std::string& name, TokenArray params);
   
-  nest::index getFirstNeuronId();
+  //nest::index getFirstNeuronId();
   
 };
