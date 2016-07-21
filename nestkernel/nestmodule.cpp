@@ -766,7 +766,7 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
 
   i->assert_stack_load(10);
   
-  const DictionaryDatum params = getValue< DictionaryDatum >( i->OStack.pick( 1 ) );
+  /*const DictionaryDatum params = getValue< DictionaryDatum >( i->OStack.pick( 1 ) );
 
   const int stride = getValue< long >( i->OStack.pick( 9 ) );
   const index last_total_synapse = getValue< long >( i->OStack.pick( 8 ) );
@@ -792,7 +792,7 @@ void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
   h5Synapses.import(syn_file, h5_params);
   
   //omp_set_dynamic(false);
-  //omp_set_num_threads(tmp_num_threads);
+  //omp_set_num_threads(tmp_num_threads);*/
 
   i->OStack.pop(10);
   i->EStack.pop();
@@ -848,26 +848,21 @@ void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
    FirstVersion: Oktober 2015
    SeeAlso: Connect, HDF5MikeLoad_s_s
 */
-void NestModule::H5NeuronCsX_s_a_sFunction::execute(SLIInterpreter *i) const
+void NestModule::H5NeuronCsX_DFunction::execute(SLIInterpreter *i) const
 {
-    i->assert_stack_load(4);
+    i->assert_stack_load(1);
   
-    const DictionaryDatum din = getValue< DictionaryDatum >( i->OStack.pick( 3 ) );
-    const TokenArray param_names = getValue< TokenArray >( i->OStack.pick( 2 ) );
-    const std::string neuron_file = getValue< std::string >(i->OStack.pick(1));
-    const Name model_name = getValue< Name >( i->OStack.pick( 0 ) );
+    DictionaryDatum din = getValue< DictionaryDatum >( i->OStack.pick( 0 ) );
     
-    Name subnet_name = "";
-    updateValue<Name>(din, name::subnet_name, subnet_name);
-    
-    H5Neurons h5neurons(model_name, param_names, );
+    H5Neurons h5neurons( din );
     
     DictionaryDatum dout( new Dictionary );
-    h5neurons.import(neuron_file, subnet_name, dout);
 
-    i->OStack.pop(4);
+    h5neurons.import( dout );
+
+    i->OStack.pop(1);
   
-    i->OStack.push( dd );
+    i->OStack.push( dout );
     i->EStack.pop();
 }
 
@@ -1792,6 +1787,7 @@ NestModule::init( SLIInterpreter* i )
   i->createcommand( "DataConnect_a", &dataconnect_afunction );
 
   i->createcommand("HDF5MikeLoad_s_s", &hdf5mikeload_s_sfunction);
+  i->createcommand("H5NeuronCsX_D", &h5neuroncsx_dfunction);
 
   i->createcommand( "ResetNetwork", &resetnetworkfunction );
   i->createcommand( "ResetKernel", &resetkernelfunction );

@@ -13,36 +13,36 @@
 
 H5Neurons::H5Neurons(const DictionaryDatum& din)
 {
-    filename = getValue<TokenArray>(din, names::file);
-    TokenArray param_names = getValue<TokenArray>(din, names::params);
+    filename = getValue< std::string >(din, "file");
+    TokenArray param_names = getValue<TokenArray>(din, "params");
     for (int i=0; i<param_names.size(); i++) {
         model_param_names.push_back(param_names[i]);
     }
     TokenArray h5params = param_names;
     
     //if params from file set use different parameters
-    updateValue<TokenArray>(din, names::params_from_file, h5params);
+    updateValue<TokenArray>(din, "params_read_from_file", h5params);
     for (int i=0; i<h5params.size(); i++) {
         neurons_.parameter_names.push_back(h5params[i]);
     }
     
-    const Name model_name = getValue<TokenArray>(din, names::model);
-    const Token neuron_model = kernel().model_manager.get_modeldict()->lookup(model_name);
-    neurons_.model_id_ = static_cast< index >(model_name);
+    const Name model_name = getValue<Name>(din, "model");
+    const Token neuron_model = nest::kernel().model_manager.get_modeldict()->lookup(model_name);
+    neurons_.model_id_ = static_cast< nest::index >(neuron_model);
     
-    std::string subnet_name = ""
-    if (updateValue<std::string>(din, names::subnet, subnet_name)) {
+    std::string subnet_name = "";
+    if (updateValue<std::string>(din, "subnet", subnet_name)) {
         neurons_.with_subnet = (subnet_name != "");
         if (neurons_.with_subnet)
-            neurons_.subnet_name = subnet_name.toString();
+            neurons_.subnet_name = subnet_name;
     }
     //add kernels
     ArrayDatum kernels;
-    if (updateValue<ArrayDatum>(d, nest::kernels, kernels)) {
+    if (updateValue<ArrayDatum>(din, "kernels", kernels)) {
         for (int i=0; i< kernels.size(); i++) {
             DictionaryDatum kd = getValue< DictionaryDatum >( kernels[i] );
-            const std::string kernel_name = getValue<std::string>( kd, nest::name );
-            const std::string kernel_params = getValue<std::string>( kd, nest::params );
+            const std::string kernel_name = getValue< std::string >( kd, "name" );
+            const TokenArray kernel_params = getValue< TokenArray >( kd, "params" );
             addKernel(kernel_name, kernel_params);
         }
     }
@@ -80,12 +80,11 @@ void H5Neurons::import(DictionaryDatum& dout)
     //loads all parameters for the local neurons based on NEST neuron distribution
     cellLoader.loadLocalParameters(neurons_.parameter_names, non, first_neuron, neurons_);
     GIDCollectionDatum added_neurons = CreateNeurons();
-    def< GIDCollectionDatum >( dout, names::added, added_neurons );
+    def< GIDCollectionDatum >( dout, "added_gids", added_neurons );
 
-    const bool with_subnet = (subnet_name != "");
-    if (with_subnet) {
-        cellLoader.loadSubnets(non, subnet_name, neurons_);
-        def< GIDCollectionDatum >( dout, names::subnet, CreateSubnets(added_neurons) );
+    if (neurons_.with_subnet) {
+        cellLoader.loadSubnets(non, neurons_.subnet_name, neurons_);
+        def< GIDCollectionDatum >( dout, "subnet", CreateSubnets(added_neurons) );
     }
 }
 
@@ -125,11 +124,11 @@ GIDCollectionDatum H5Neurons::CreateSubnets(const GIDCollectionDatum& added_neur
  */
 GIDCollectionDatum H5Neurons::CreateNeurons()
 {  
-    const index non = neurons_.size();
-    const index first_neuron_gid = kernel().node_manager.size();
-    const index last_neuron_gid = nest::kernel().node_manager.add_node(neurons_.model_id_, non);
+    const long non = neurons_.size();
+    const nest::index first_neuron_gid = nest::kernel().node_manager.size();
+    const nest::index last_neuron_gid = nest::kernel().node_manager.add_node(neurons_.model_id_, non);
     
-    GIDCollectionDatum added_neurons(first_neuron_gid, last_neuron_gid);
+    GIDCollectionDatum added_neurons = GIDCollection(first_neuron_gid, last_neuron_gid);
     
     //set parameters of created neurons
     //ids of neurons are continously even though they might be in different subnets

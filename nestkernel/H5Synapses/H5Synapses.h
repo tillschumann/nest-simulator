@@ -8,6 +8,7 @@
 
 //#include "H5SynMEMPedictor.h"
 #include "dictdatum.h"
+#include "nest_datums.h"
 #include "H5SynapseLoader.h"
 #include "kernels.h"
 
@@ -21,6 +22,8 @@ enum CommunicateSynapses_Status {NOCOM,SEND, RECV, SENDRECV, UNSET};
  * 
  */
 
+using namespace nest;
+
 class H5Synapses
 {
 private:
@@ -28,7 +31,7 @@ private:
   
   std::vector<std::string> synparam_names;
   
-  size_t stride_;
+  long stride_;
 
   kernel_combi<double> kernel;
   GIDCollectionDatum neurons;
@@ -42,12 +45,15 @@ private:
   void freeSynapses();
   CommunicateSynapses_Status CommunicateSynapses();
   
-public:
-  H5Synapses(nest::index offset, const Name synmodel_name, TokenArray hdf5_names,TokenArray synparam_names, TokenArray synparam_facts, TokenArray synparam_offset);
-  ~H5Synapses();
-  void import(const std::string& syn_filename, const nest::index num_syanpses_per_process=0, const nest::index last_total_synapse=0);
 
-  void set_status( const DictionaryDatum& d );
+  void addKernel(std::string name, TokenArray params);
+
+public:
+  H5Synapses(const Name synmodel_name, TokenArray isynparam_names);
+  ~H5Synapses();
+  void import(const std::string& syn_filename, const DictionaryDatum& d);
+
+  void set_status( DictionaryDatum& d );
 
 };
 

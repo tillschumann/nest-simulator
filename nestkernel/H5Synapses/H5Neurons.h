@@ -3,17 +3,19 @@
 #include <omp.h>
 #include "NESTNodeNeuron.h"
 #include "nest_types.h"
+#include "nest_datums.h"
 #include "name.h"
 #include "tokenarray.h"
 #include "kernels.h"
 
+using namespace nest;
 
 class H5Neurons
 {
 private:
   omp_lock_t tokenLock;
   
-  void CreateSubnets();
+  GIDCollectionDatum CreateSubnets(const GIDCollectionDatum& added_neurons);
   GIDCollectionDatum CreateNeurons();
   
   NESTNeuronList neurons_;
@@ -27,7 +29,7 @@ private:
     
     std::string filename;
     
-    std::vector< Name > model_param_names;
+    std::vector< std::string > model_param_names;
 
   /*struct ParameterValue {
     std::string name;
@@ -38,8 +40,8 @@ private:
   //std::vector<ParameterValue> const_params;
   
 public:
-  H5Neurons(const Name model_name, TokenArray param_names, const Name subnet_name);
-  void import(const std::string& filename, TokenArray dataset_names);
+  H5Neurons(const DictionaryDatum& din);
+  void import(DictionaryDatum& dout);
   void addKernel(const std::string& name, TokenArray params);
   
   //nest::index getFirstNeuronId();

@@ -9,7 +9,7 @@
 #define KERNELS_H_
 
 template <typename T>
-struct kernel {
+struct manipulate_kernel {
 	virtual std::vector<T> operator()(std::vector<T> values)
 	{
 		return values;
@@ -17,11 +17,11 @@ struct kernel {
 };
 
 template <typename T>
-struct kernel_combi : public kernel<T> {
-	std::vector< kernel<T>* > kernels_;
+struct kernel_combi : public manipulate_kernel<T> {
+	std::vector< manipulate_kernel<T>* > kernels_;
 	kernel_combi()
 	{
-		kernel<T>* k = new kernel<T>();
+		manipulate_kernel<T>* k = new manipulate_kernel<T>();
 		kernels_.push_back(k);
 	}
 
@@ -35,22 +35,22 @@ struct kernel_combi : public kernel<T> {
 	void push_back(const std::vector<T>& v)
 	{
 		K* k = new K(v);
-		kernels_.push_back( static_cast<kernel<T>*>(k) );
+		kernels_.push_back( static_cast<manipulate_kernel<T>*>(k) );
 	}
-	std::vector<T> func(std::vector<T> values)
+	std::vector<T> operator()(std::vector<T> values)
 	{
 		for (int i=0; i<kernels_.size(); i++)
-			values = kernels_[i](values);
+			values = (*kernels_[i])(values);
 		return values;
 	}
 };
 
 template <typename T>
-struct kernel_multi : public kernel<T> {
+struct kernel_multi : public manipulate_kernel<T> {
 	std::vector<T> multis_;
 	kernel_multi(const std::vector<T>& multis): multis_(multis)
 	{}
-	std::vector<T> func(std::vector<T> values)
+	std::vector<T> operator()(std::vector<T> values)
 	{
 		assert(values.size() == multis_.size());
 
@@ -61,7 +61,7 @@ struct kernel_multi : public kernel<T> {
 };
 
 template <typename T>
-struct kernel_add : public kernel<T> {
+struct kernel_add : public manipulate_kernel<T> {
 	std::vector<T> adds_;
 	kernel_add(const std::vector<T>& adds): adds_(adds)
 	{}
@@ -76,16 +76,16 @@ struct kernel_add : public kernel<T> {
 };
 
 template <typename T>
-struct kernel_csaba : public kernel<T> {
+struct kernel_csaba : public manipulate_kernel<T> {
 	T lower;
 	T upper;
 	kernel_csaba(const std::vector<T>& boundaries)
 	{
-		assert(boundaries.size() = 2);
+		assert(boundaries.size() == 2);
 		lower = boundaries[0];
 		upper = boundaries[1];
 	}
-	std::vector<T> func(std::vector<T> values)
+	std::vector<T> operator()(std::vector<T> values)
 	{
 		assert(values.size() == 5);
 

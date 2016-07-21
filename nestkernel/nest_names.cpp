@@ -366,5 +366,10 @@ const Name xs( "xs" );
 
 const Name z( "z" );
 const Name z_connected( "z_connected" );
+
+const Name synapses_per_rank( "synapses_per_rank" );
+const Name last_synapse( "last_synapse" );
+const Name hdf5_names( "hdf5_names" );
+
 }
 }

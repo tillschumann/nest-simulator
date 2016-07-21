@@ -15,6 +15,8 @@
 #include "exceptions.h"
 #include "compose.hpp"
 #include "nest_names.h"
+#include "nest_types.h"
+#include "dictdatum.h"
 
 #include "vp_manager_impl.h"
 
@@ -125,7 +127,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
       std::vector<const Token*> v_ptr(synapses_.prop_names.size());
       omp_set_lock(&tokenLock);
       for (int i=2; i<synapses_.prop_names.size(); i++) {
-		def< double_t >( d, synparam_names[i], param_offset[i]  );
+		def< double_t >( d, synparam_names[i], 0.0  );
 		const Token& token_ref = d->lookup2( synparam_names[i] );
 		v_ptr[i] = &token_ref;
       }
@@ -201,7 +203,7 @@ void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
     //mutex easiest workaround
     omp_set_lock(&tokenLock);
     for (int i=2; i<synapses_.prop_names.size(); i++)
-      def< double_t >( d, synparam_names[i], param_offset[i]  );
+      def< double_t >( d, synparam_names[i], 0.0  );
     omp_unset_lock(&tokenLock);
     
     //if (memPredictor.preNESTConnect(synapses_.size())==0)
@@ -300,7 +302,7 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses()
  * 
  */
 H5Synapses::H5Synapses(const Name synmodel_name, TokenArray isynparam_names)
-: neuron_id_offset_(1), stride_(1)
+: stride_(1)
 {  
   //init lock token
   omp_init_lock(&tokenLock);
@@ -329,12 +331,12 @@ void H5Synapses::freeSynapses()
 
 void H5Synapses::import(const std::string& syn_filename, const DictionaryDatum& d)
 {
-  uint64_t num_syanpses_per_process = 0;
-  uint64_t last_total_synapse = 0;
+  long num_syanpses_per_process = 0;
+  long last_total_synapse = 0;
   TokenArray hdf5_names;
 
-  updateValue< uint64_t >( d, names::synapses_per_rank, num_syanpses_per_process );
-  updateValue< uint64_t >( d, names::last_synapse, last_total_synapse );
+  updateValue< long >( d, names::synapses_per_rank, num_syanpses_per_process );
+  updateValue< long >( d, names::last_synapse, last_total_synapse );
 
   //if set use different names for synapse model and hdf5 dataset columns
   if (updateValue< TokenArray >( d, names::hdf5_names, hdf5_names)) {
@@ -377,7 +379,7 @@ void H5Synapses::import(const std::string& syn_filename, const DictionaryDatum& 
       SCOREP_USER_REGION("det", SCOREP_USER_REGION_TYPE_FUNCTION)
 #endif
     for (int i=0; i< synapses_.size(); i++)
-      synapses_[i].integrateOffset(neuron_id_offset_); // inverse NEST offset + csaba offset (offset to 0-indicies)
+      synapses_[i].integrateMapping(neurons); // inverse NEST offset + csaba offset (offset to 0-indicies)
     }
     
     {
@@ -413,22 +415,23 @@ void H5Synapses::import(const std::string& syn_filename, const DictionaryDatum& 
                           rank, n_readSynapses, n_conSynapses, n_memSynapses, n_SynapsesInDatasets) );
 }
 
-void H5Synapses::set_status( const DictionaryDatum& d ) {
+void H5Synapses::set_status( DictionaryDatum& d ) {
 	//use gid collection as mapping
-	if (!updateValue< GIDCollectionDatum >( d, names::neurons, neurons )) {
-        const nest::index last_neuron = nest::kernel().node_manager.size();
-		neurons = GIDCollectionDatum(1, last_neuron);
+	if (!updateValue< GIDCollection >( d, "neurons", neurons )) {
+		nest::index first_neuron = 1;
+        nest::index last_neuron = nest::kernel().node_manager.size();
+		neurons = GIDCollection(first_neuron, last_neuron);
 	}
     //set stride if set, if not stride is 1
-    updateValue<size_t>(d, nest::stride, stride_);
+    updateValue<long>(d, "stride", stride_);
     
     //add kernels
     ArrayDatum kernels;
-    if (updateValue<ArrayDatum>(d, nest::kernels, kernels)) {
+    if (updateValue<ArrayDatum>(d, "kernels", kernels)) {
         for (int i=0; i< kernels.size(); i++) {
             DictionaryDatum kd = getValue< DictionaryDatum >( kernels[i] );
-            const std::string kernel_name = getValue<std::string>( kd, nest::name );
-            const std::string kernel_params = getValue<std::string>( kd, nest::name );
+            const std::string kernel_name = getValue<std::string>( kd, "name" );
+            const TokenArray kernel_params = getValue<TokenArray>( kd, "params" );
             addKernel(kernel_name, kernel_params);
         }
     }
@@ -437,22 +440,22 @@ void H5Synapses::set_status( const DictionaryDatum& d ) {
 void H5Synapses::addKernel(std::string name, TokenArray params)
 {
 	if (name == "add") {
-		std::vector<float> v(params.size());
+		std::vector<double> v(params.size());
 		for (int i=0; i<params.size(); i++)
 			v[i] = params[i];
-		kernel.push_back< kernel_add<float> >(v);
+		kernel.push_back< kernel_add<double> >(v);
 	}
 	else if (name == "multi") {
-		std::vector<float> v(params.size());
+		std::vector<double> v(params.size());
 		for (int i=0; i<params.size(); i++)
 			v[i] = params[i];
-		kernel.push_back< kernel_multi<float> >(v);
+		kernel.push_back< kernel_multi<double> >(v);
 	}
 	else if (name == "csaba1") {
-		std::vector<float> v(params.size());
+		std::vector<double> v(params.size());
 		for (int i=0; i<params.size(); i++)
 			v[i] = params[i];
-		kernel.push_back< kernel_csaba<float> >(v);
+		kernel.push_back< kernel_csaba<double> >(v);
 	}
 
 }

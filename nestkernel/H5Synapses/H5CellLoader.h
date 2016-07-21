@@ -60,9 +60,8 @@ public:
   /*
    * Load subnet dataset from hdf5 file
    */
-  void loadSubnets(const uint64_t numberOfNeurons, const Name subnet_name, NESTNeuronList& neurons)
+  void loadSubnets(const uint64_t& numberOfNeurons, const std::string& subnet_name, NESTNeuronList& neurons)
   {
-    
       //need subnet information of all nodes
       std::vector< int > buffer_int(numberOfNeurons);
 
@@ -76,7 +75,6 @@ public:
       
       for (int j=0;j<numberOfNeurons;j++)
           neurons.setSubnet(j,buffer_int[j]);
-    
   }
   
   

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <vector>
-//#include "communicator.h"
+#include "nest_datums.h"
 
 #ifndef NESTNODESYNAPSE_CLASS
 #define NESTNODESYNAPSE_CLASS
@@ -9,6 +9,8 @@ typedef int int32_t;
 typedef long int int64_t;
 typedef unsigned int uint32_t;
 typedef unsigned long int uint64_t;
+
+using namespace nest;
 
 class NESTNodeSynapse
 {
@@ -33,7 +35,7 @@ public:
     void serialize(unsigned int* buf);
     void deserialize(unsigned int* buf);
     
-    void integrateOffset(const int& offset);
+    void integrateMapping(const GIDCollection& gidc);
     
     bool operator<(const NESTNodeSynapse& rhs) const;
 };
