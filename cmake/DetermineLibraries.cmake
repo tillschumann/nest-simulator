@@ -77,8 +77,8 @@ set( HAVE_HDF5 OFF )
 if ( with-hdf5 )
   if ( NOT ${with-hdf5} STREQUAL "ON" )
     # if set, use this prefix
-    set( HDF5_INCLUDE_DIRS ${with-hdf5}/include )
-    set( HDF5_LIBRARIES ${with-hdf5}/lib )
+    find_path( HDF5_INCLUDE_DIRS NAMES hdf5.h HINTS ${with-hdf5}/include )
+    find_library( HDF5_LIBRARIES NAMES hdf5 HINTS ${with-hdf5}/lib ) 
   endif ()
 endif ()
 

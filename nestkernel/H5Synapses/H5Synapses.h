@@ -38,6 +38,11 @@ private:
   
   NESTSynapseList synapses_;
   
+  std::string filename;
+
+  long num_syanpses_per_process;
+  long last_total_synapse;
+
   void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses);
   void ConnectNeurons(uint64_t& n_conSynapses);
   uint64_t threadConnectNeurons(uint64_t& n_conSynapses);
@@ -49,9 +54,9 @@ private:
   void addKernel(std::string name, TokenArray params);
 
 public:
-  H5Synapses(const Name synmodel_name, TokenArray isynparam_names);
+  H5Synapses(const DictionaryDatum& din);
   ~H5Synapses();
-  void import(const std::string& syn_filename, const DictionaryDatum& d);
+  void import(DictionaryDatum& dout);
 
   void set_status( DictionaryDatum& d );
 

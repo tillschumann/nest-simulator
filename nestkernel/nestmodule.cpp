@@ -756,45 +756,35 @@ NestModule::Disconnect_g_g_D_DFunction::execute( SLIInterpreter* i ) const
 
    Author: Till Schumann
    FirstVersion: Oktober 2015
-   SeeAlso: Connect, H5NeuronCsX_s_a_s
+   SeeAlso: Connect, H5ConnectionTll_d
 */
-void NestModule::HDF5MikeLoad_s_sFunction::execute(SLIInterpreter *i) const
+void NestModule::H5ConnectionTll_DFunction::execute(SLIInterpreter *i) const
 {
   #ifdef SCOREP_COMPILE
   SCOREP_USER_REGION( "syn_import_module", SCOREP_USER_REGION_TYPE_FUNCTION )
   #endif 
 
-  i->assert_stack_load(10);
+  i->assert_stack_load(1);
   
-  /*const DictionaryDatum params = getValue< DictionaryDatum >( i->OStack.pick( 1 ) );
+  const DictionaryDatum din = getValue< DictionaryDatum >( i->OStack.pick( 0 ) );
 
-  const int stride = getValue< long >( i->OStack.pick( 9 ) );
-  const index last_total_synapse = getValue< long >( i->OStack.pick( 8 ) );
-  const int block_per_process = getValue< long >( i->OStack.pick( 7 ) );
-  TokenArray hdf5_names = getValue< TokenArray >( i->OStack.pick( 6 ) );
-  TokenArray synparam_offset = getValue< TokenArray >( i->OStack.pick( 5 ) );
-  index neuron_offset = getValue< long >( i->OStack.pick( 4 ) );
-  TokenArray synparam_names = getValue< TokenArray >( i->OStack.pick( 3 ) );
-  TokenArray synparam_facts = getValue< TokenArray >( i->OStack.pick( 2 ) );
-  const Name synmodel_name = getValue< std::string >( i->OStack.pick( 1 ) );
-  const std::string syn_file = getValue<std::string>(i->OStack.pick(0));
+  const int n_threads = nest::kernel().vp_manager.get_num_threads();
 
-  const int tmp_num_threads = omp_get_num_threads();
-  
-	  const int num_threads = nest::kernel().vp_manager.get_num_threads();
-  omp_set_num_threads(num_threads);
+  //nest::kernel().vp_manager.set_num_threads( n_threads );
+  //nest::kernel().num_threads_changed_reset();
 
-  H5Synapses h5Synapses(synmodel_name, synparam_names);
+  H5Synapses h5Synapses(din);
 
-  h5Synapses.set_status(net_params);
+  //h5Synapses.set_status(net_params);
 
-  h5Synapses.setStride(stride);
-  h5Synapses.import(syn_file, h5_params);
+  DictionaryDatum dout( new Dictionary );
+  h5Synapses.import(dout);
   
   //omp_set_dynamic(false);
   //omp_set_num_threads(tmp_num_threads);*/
 
-  i->OStack.pop(10);
+  i->OStack.pop(1);
+  i->OStack.push( dout );
   i->EStack.pop();
 }
 
@@ -1786,7 +1776,7 @@ NestModule::init( SLIInterpreter* i )
   i->createcommand( "DataConnect_i_D_s", &dataconnect_i_D_sfunction );
   i->createcommand( "DataConnect_a", &dataconnect_afunction );
 
-  i->createcommand("HDF5MikeLoad_s_s", &hdf5mikeload_s_sfunction);
+  i->createcommand("H5ConnectionTll_D", &h5connectiontll_dfunction);
   i->createcommand("H5NeuronCsX_D", &h5neuroncsx_dfunction);
 
   i->createcommand( "ResetNetwork", &resetnetworkfunction );

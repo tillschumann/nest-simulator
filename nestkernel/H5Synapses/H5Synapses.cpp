@@ -53,7 +53,7 @@ void H5Synapses::singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id
     values = kernel(values);
     
     for (int i=2; i<values.size(); i++) {
-      setValue<double_t>( *v_ptr[i], values[i] );
+      setValue<double>( *v_ptr[i], values[i] );
     }
 
     nest::kernel().connection_manager.connect(source, target_node, target_thread, synmodel_id, d, values[0], values[1]);
@@ -80,14 +80,14 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
  
   
   uint64_t shared, persist, heapavail, stackavail, stack, heap, guard, mmap;
-    Kernel_GetMemorySize(KERNEL_MEMSIZE_SHARED, &shared);
+    /*Kernel_GetMemorySize(KERNEL_MEMSIZE_SHARED, &shared);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_PERSIST, &persist);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAPAVAIL, &heapavail);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_STACKAVAIL, &stackavail);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_STACK, &stack);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAP, &heap);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_GUARD, &guard);
-    Kernel_GetMemorySize(KERNEL_MEMSIZE_MMAP, &mmap);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_MMAP, &mmap);*/
     
     std::stringstream ss;
     ss << "threadConnectNeurons\tnew_cons=" << synapses_.size() << "\t"
@@ -103,7 +103,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 
     LOG( nest::M_DEBUG, "H5Synapses::threadConnectNeurons", ss.str());
 
-  #pragma omp parallel default(shared) reduction(+:n_conSynapses_sum) reduction(max:n_conSynapses_max)
+  #pragma omp parallel default(shared) reduction(+:n_conSynapses_sum)
   {
     uint64_t n_conSynapses_tmp = 0;
     //nestio::Stopwatch::timestamp_t connect_dur=0;
@@ -127,7 +127,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
       std::vector<const Token*> v_ptr(synapses_.prop_names.size());
       omp_set_lock(&tokenLock);
       for (int i=2; i<synapses_.prop_names.size(); i++) {
-		def< double_t >( d, synparam_names[i], 0.0  );
+		def< double >( d, synparam_names[i], 0.0  );
 		const Token& token_ref = d->lookup2( synparam_names[i] );
 		v_ptr[i] = &token_ref;
       }
@@ -181,7 +181,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
     omp_unset_lock(&tokenLock);
 
     n_conSynapses_sum += n_conSynapses_tmp;
-    n_conSynapses_max = n_conSynapses_tmp;
+    //n_conSynapses_max = n_conSynapses_tmp;
   }
   n_conSynapses += n_conSynapses_sum;
   return n_conSynapses;
@@ -203,7 +203,7 @@ void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
     //mutex easiest workaround
     omp_set_lock(&tokenLock);
     for (int i=2; i<synapses_.prop_names.size(); i++)
-      def< double_t >( d, synparam_names[i], 0.0  );
+      def< double >( d, synparam_names[i], 0.0  );
     omp_unset_lock(&tokenLock);
     
     //if (memPredictor.preNESTConnect(synapses_.size())==0)
@@ -301,19 +301,51 @@ CommunicateSynapses_Status H5Synapses::CommunicateSynapses()
 /**
  * 
  */
-H5Synapses::H5Synapses(const Name synmodel_name, TokenArray isynparam_names)
+H5Synapses::H5Synapses(const DictionaryDatum& din)
 : stride_(1)
 {  
   //init lock token
   omp_init_lock(&tokenLock);
   
+
+  filename = getValue< std::string >(din, "file");
+  TokenArray isynparam_names = getValue<TokenArray>(din, "params");
   for (int i=0; i<isynparam_names.size(); i++) {
-    synparam_names.push_back(isynparam_names[i]);
+	  synparam_names.push_back(isynparam_names[i]);
   }
 
+
+	if (!updateValue< long >( din, names::synapses_per_rank, num_syanpses_per_process ))
+		num_syanpses_per_process = 524288;
+	if (!updateValue< long >( din, names::last_synapse, last_total_synapse ))
+		last_total_synapse = 0;
+
+	TokenArray hdf5_names;
+	//if set use different names for synapse model and hdf5 dataset columns
+	if (updateValue< TokenArray >( din, names::hdf5_names, hdf5_names)) {
+	  for (int i=0; i<hdf5_names.size(); i++) {
+		  synapses_.prop_names.push_back(hdf5_names[i]);
+		}
+	}
+	else {
+	  synapses_.prop_names = synparam_names;
+	}
+	//if nothing is set use GIDCollection for all neurons
+	//we get an offset of +1
+	if (!updateValue< GIDCollectionDatum >( din, "mapping", neurons)) {
+		const int first = 1;
+		const int last = nest::kernel().node_manager.size()-1;
+		std::cout << "first=" << first << " last=" << last << std::endl;
+		neurons = GIDCollection(first,last);
+	}
+
+
   //lookup synapse model
-  const Token synmodel = nest::kernel().model_manager.get_synapsedict()->lookup(synmodel_name);
-  synapses_.synmodel_id_ = static_cast<nest::index>(synmodel);
+  const Name model_name = getValue<Name>(din, "model");
+  const Token synmodel = nest::kernel().model_manager.get_synapsedict()->lookup(model_name);
+  synapses_.synmodel_id_ = static_cast<size_t>(synmodel);
+
+
 }
 
 H5Synapses::~H5Synapses()
@@ -329,25 +361,8 @@ void H5Synapses::freeSynapses()
   synapses_.clear();
 }
 
-void H5Synapses::import(const std::string& syn_filename, const DictionaryDatum& d)
+void H5Synapses::import(DictionaryDatum& dout)
 {
-  long num_syanpses_per_process = 0;
-  long last_total_synapse = 0;
-  TokenArray hdf5_names;
-
-  updateValue< long >( d, names::synapses_per_rank, num_syanpses_per_process );
-  updateValue< long >( d, names::last_synapse, last_total_synapse );
-
-  //if set use different names for synapse model and hdf5 dataset columns
-  if (updateValue< TokenArray >( d, names::hdf5_names, hdf5_names)) {
-	  for (int i=0; i<hdf5_names.size(); i++) {
-	      synapses_.prop_names.push_back(hdf5_names[i]);
-	    }
-  }
-  else {
-	  synapses_.prop_names = synparam_names;
-  }
-
   int rank = nest::kernel().mpi_manager.get_rank();
   int size = nest::kernel().mpi_manager.get_num_processes();
   
@@ -360,7 +375,7 @@ void H5Synapses::import(const std::string& syn_filename, const DictionaryDatum& 
   
   CommunicateSynapses_Status com_status=UNSET;
   
-  H5SynapsesLoader synloader(syn_filename, synapses_.prop_names,n_readSynapses,n_SynapsesInDatasets, num_syanpses_per_process, last_total_synapse);
+  H5SynapsesLoader synloader(filename, synapses_.prop_names,n_readSynapses,n_SynapsesInDatasets, num_syanpses_per_process, last_total_synapse);
   //number of synapses per iteration effects memory consumption and speed of the import module
   //uint64_t nos = 1e6; 
   

@@ -91,7 +91,7 @@ set( nestkernel_sources
 add_library( nestkernel ${nestkernel_sources} )
 target_link_libraries( nestkernel
     nestutil random sli_lib
-    ${LTDL_LIBRARIES} ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES} ${HDF5_LIBRARIES}/libhdf5.a
+    ${LTDL_LIBRARIES} ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES} ${HDF5_LIBRARIES}
     )
 
 target_include_directories( nestkernel PRIVATE

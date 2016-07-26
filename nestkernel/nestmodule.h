@@ -225,11 +225,11 @@ public:
     void execute( SLIInterpreter* ) const;
   } getconnections_Dfunction;
 
-  class HDF5MikeLoad_s_sFunction: public SLIFunction
+  class H5ConnectionTll_DFunction: public SLIFunction
   {
   public:
     void execute(SLIInterpreter *) const;
-  } hdf5mikeload_s_sfunction;
+  } h5connectiontll_dfunction;
   
   class H5NeuronCsX_DFunction: public SLIFunction
   {

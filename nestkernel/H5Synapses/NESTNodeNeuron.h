@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #include "nest_types.h"
 
@@ -41,7 +42,7 @@ public:
   {
     NESTNodeNeuron neuron(subsets_[idx]);
     for (int i=0; i<13; i++)
-      neuron.parameter_values_[i] = neuron_parameters_[idx+i];
+      neuron.parameter_values_[i] = neuron_parameters_[idx*13+i];
     return neuron;
   };
   

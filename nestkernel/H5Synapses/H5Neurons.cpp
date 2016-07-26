@@ -116,7 +116,7 @@ GIDCollectionDatum H5Neurons::CreateSubnets(const GIDCollectionDatum& added_neur
                 gids.push_back(added_neurons[j]);
     
     //}
-    return GIDCollectionDatum(TokenArray(gids));
+    return GIDCollection(TokenArray(gids));
 }
 
 /*
@@ -133,8 +133,14 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
     //set parameters of created neurons
     //ids of neurons are continously even though they might be in different subnets
     for (int i=0;i<non;i++) {
+    	int x = added_neurons[i];
         nest::Node* node = nest::kernel().node_manager.get_node(added_neurons[i]);
         if (nest::kernel().node_manager.is_local_node(node)) {
+            if (!node->is_local()) {
+                std::cout << "why? " << i << " " << x << std::endl;
+		continue;
+            }
+
             DictionaryDatum d( new Dictionary );
             
             std::vector<float> values(neurons_[i].parameter_values_, neurons_[i].parameter_values_+neurons_.parameter_names.size());
@@ -143,9 +149,11 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
             values = kernel(values);
             
             //copy values into sli data objects
-            for (int j=0; j<model_param_names.size(); j++)
-                def< double_t >( d, model_param_names[j], values[j] );
-            
+            for (int j=0; j<model_param_names.size(); j++) {
+               std::cout << model_param_names[j] << "=" << values[j] << " "; 
+               def< double >( d, model_param_names[j], values[j] );
+            }
+            std::cout << std::endl;
             //pass sli objects to neuron
             node->set_status(d);
         }
