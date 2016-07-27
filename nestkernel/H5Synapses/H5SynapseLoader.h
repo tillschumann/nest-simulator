@@ -305,12 +305,12 @@ public:
       global_offset_ = std::accumulate(global_num_syns.begin()+RANK, global_num_syns.end(), private_offset); // for next iteration
       */
     
-      uint64_t private_offset += fixed_num_syns_ * RANK + global_offset_;
-      global_offset_ += fixed_num_syns_ * NUM_PROCESSES:
+      uint64_t private_offset = fixed_num_syns_ * RANK + global_offset_;
+      global_offset_ += fixed_num_syns_ * NUM_PROCESSES;
     
       //load only neuron parameters which are needed based on NEST internal round robin fashion
   
-      int64_t count = std::min((int64_t)num_syns, ((int64_t)total_num_syns_-(int64_t)private_offset));
+      int64_t count = std::min((int64_t)fixed_num_syns_, ((int64_t)total_num_syns_-(int64_t)private_offset));
       if (count<0)
           count=0;
       H5View dataspace_view(count, private_offset);

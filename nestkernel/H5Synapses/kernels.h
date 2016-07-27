@@ -65,7 +65,7 @@ struct kernel_add : public manipulate_kernel<T> {
 	std::vector<T> adds_;
 	kernel_add(const std::vector<T>& adds): adds_(adds)
 	{}
-	std::vector<T> func(std::vector<T> values)
+	std::vector<T> operator()(std::vector<T> values)
 	{
 		assert(values.size() == adds_.size());
 

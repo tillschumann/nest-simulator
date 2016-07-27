@@ -44,7 +44,7 @@ private:
   long last_total_synapse;
 
   void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses);
-  void ConnectNeurons(uint64_t& n_conSynapses);
+  //void ConnectNeurons(uint64_t& n_conSynapses);
   uint64_t threadConnectNeurons(uint64_t& n_conSynapses);
   
   void freeSynapses();
@@ -58,7 +58,7 @@ public:
   ~H5Synapses();
   void import(DictionaryDatum& dout);
 
-  void set_status( DictionaryDatum& d );
+  void set_status( const DictionaryDatum& din );
 
 };
 

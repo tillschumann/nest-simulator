@@ -94,29 +94,23 @@ void H5Neurons::import(DictionaryDatum& dout)
 GIDCollectionDatum H5Neurons::CreateSubnets(const GIDCollectionDatum& added_neurons)
 {
     //find all subnets
-    std::vector<int> unique_subnets;
+	std::vector< std::vector<long> > gids;
+    std::vector< int > unique_subnets;
+
     for (int i=0; i<neurons_.size(); i++) {
-        if (!(std::find(unique_subnets.begin(), unique_subnets.end(), neurons_[i].subnet_) != unique_subnets.end())) {
-            unique_subnets.push_back(neurons_[i].subnet_);
-        }
+    	if (neurons_[i].subnet_ != 0) {
+    		int index = std::distance(unique_subnets.begin(), std::find(unique_subnets.begin(), unique_subnets.end(), neurons_[i].subnet_));
+			if (index==unique_subnets.size()) {
+				unique_subnets.push_back(neurons_[i].subnet_);
+				gids.push_back(std::vector<long>());
+				index = unique_subnets.size()-1;
+			}
+			gids[index].push_back(added_neurons[i]);
+    	}
     }
-  
-    //del 0 subnet, because 0 subnet means main network
-    int n_newSubnets = unique_subnets.size();
-    if (std::find(unique_subnets.begin(), unique_subnets.end(), 0)!= unique_subnets.end())
-        n_newSubnets--;
-    
-    
-    //for (int i=0; i<n_newSubnets; i++) {
-    //return only first gidcollection
-    int i=0;
-        std::vector<long> gids;
-        for (int j=0; j<neurons_.size(); j++)
-            if (unique_subnets[i] == neurons_[i].subnet_)
-                gids.push_back(added_neurons[j]);
-    
-    //}
-    return GIDCollection(TokenArray(gids));
+
+    //only supports one subnet so far
+    return GIDCollection(TokenArray(gids[0]));
 }
 
 /*
@@ -127,7 +121,7 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
     const long non = neurons_.size();
     const nest::index first_neuron_gid = nest::kernel().node_manager.size();
     const nest::index last_neuron_gid = nest::kernel().node_manager.add_node(neurons_.model_id_, non);
-    
+
     GIDCollectionDatum added_neurons = GIDCollection(first_neuron_gid, last_neuron_gid);
     
     //set parameters of created neurons
@@ -135,12 +129,7 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
     for (int i=0;i<non;i++) {
     	int x = added_neurons[i];
         nest::Node* node = nest::kernel().node_manager.get_node(added_neurons[i]);
-        if (nest::kernel().node_manager.is_local_node(node)) {
-            if (!node->is_local()) {
-                std::cout << "why? " << i << " " << x << std::endl;
-		continue;
-            }
-
+        if (node->is_local()) {
             DictionaryDatum d( new Dictionary );
             
             std::vector<float> values(neurons_[i].parameter_values_, neurons_[i].parameter_values_+neurons_.parameter_names.size());
@@ -150,13 +139,12 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
             
             //copy values into sli data objects
             for (int j=0; j<model_param_names.size(); j++) {
-               std::cout << model_param_names[j] << "=" << values[j] << " "; 
                def< double >( d, model_param_names[j], values[j] );
             }
-            std::cout << std::endl;
             //pass sli objects to neuron
             node->set_status(d);
         }
     }
+
     return added_neurons;
 }

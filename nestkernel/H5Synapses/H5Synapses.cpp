@@ -45,18 +45,21 @@ void H5Synapses::singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id
 {
   nest::index source = synapse.source_neuron_;
   
-  // check whether the target is on this process 
+  // safety check whether the target is on this process
   if (nest::kernel().node_manager.is_local_node(target_node)) {
-    //nestio::Stopwatch::timestamp_t begin= nestio::Stopwatch::get_timestamp(); 
 
     std::vector<double> values(synapse.prop_values_, synapse.prop_values_+5);
     values = kernel(values);
-    
+
+    assert(values.size()>=2);
+
+    const double& delay = values[0];
+    const double& weight = values[1];
     for (int i=2; i<values.size(); i++) {
       setValue<double>( *v_ptr[i], values[i] );
     }
 
-    nest::kernel().connection_manager.connect(source, target_node, target_thread, synmodel_id, d, values[0], values[1]);
+    nest::kernel().connection_manager.connect(source, target_node, target_thread, synmodel_id, d, delay, weight);
     
     n_conSynapses++;
   }
@@ -101,7 +104,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
        << "guard=" << static_cast<double>(guard)/(1024*1024) << "\t"
        << "mmap=" << static_cast<double>(mmap)/(1024*1024) << "\n";
 
-    LOG( nest::M_DEBUG, "H5Synapses::threadConnectNeurons", ss.str());
+    LOG( nest::M_INFO, "H5Synapses::threadConnectNeurons", ss.str());
 
   #pragma omp parallel default(shared) reduction(+:n_conSynapses_sum)
   {
@@ -137,8 +140,8 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 
     for (int i=0;i<synapses_.size();i++) {
 	const nest::index target = synapses_[i].target_neuron_;
-	try
-	{
+	//try
+	//{
 	  nest::Node* const target_node = nest::kernel().node_manager.get_node(target);
 	  const nest::thread target_thread = target_node->get_thread();
 	  
@@ -152,8 +155,8 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 			stride_c = 0;
 	    }
 	  }
-	}
-	catch (nest::UnknownNode e)
+	//}
+	/*catch (nest::UnknownNode e)
 	{
 	  LOG( nest::M_ERROR,
 	    "H5Synapses::threadConnectNeurons",
@@ -173,7 +176,7 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
 	    "H5Synapses::threadConnectNeurons",
 	    String::compose( "KernelException\trank=%1\t%2",
 				rank, e.message()) );
-	}
+	}*/
       }
       //tracelogger.store(tid,"nest::connect", before_connect, connect_dur);
       omp_set_lock(&tokenLock);
@@ -187,14 +190,9 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
   return n_conSynapses;
 }
 
-void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
+/*void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
 {
   int num_processes = nest::kernel().mpi_manager.get_num_processes();
-  
-  //nestio::Stopwatch::timestamp_t connect_dur=0;
-  //nestio::Stopwatch::timestamp_t before_connect=nestio::Stopwatch::get_timestamp();
-  
-  //omp_init_lock(&tokenLock);
   
   {
     DictionaryDatum d( new Dictionary );
@@ -223,7 +221,7 @@ void H5Synapses::ConnectNeurons(uint64_t& n_conSynapses)
   //tracelogger.store(0,"nest::connect", before_connect, connect_dur);
   //}
   //omp_destroy_lock(&tokenLock);
-}
+}*/
 
 /**
  *  Communicate Synpases between the nodes
@@ -306,45 +304,9 @@ H5Synapses::H5Synapses(const DictionaryDatum& din)
 {  
   //init lock token
   omp_init_lock(&tokenLock);
-  
 
-  filename = getValue< std::string >(din, "file");
-  TokenArray isynparam_names = getValue<TokenArray>(din, "params");
-  for (int i=0; i<isynparam_names.size(); i++) {
-	  synparam_names.push_back(isynparam_names[i]);
-  }
-
-
-	if (!updateValue< long >( din, names::synapses_per_rank, num_syanpses_per_process ))
-		num_syanpses_per_process = 524288;
-	if (!updateValue< long >( din, names::last_synapse, last_total_synapse ))
-		last_total_synapse = 0;
-
-	TokenArray hdf5_names;
-	//if set use different names for synapse model and hdf5 dataset columns
-	if (updateValue< TokenArray >( din, names::hdf5_names, hdf5_names)) {
-	  for (int i=0; i<hdf5_names.size(); i++) {
-		  synapses_.prop_names.push_back(hdf5_names[i]);
-		}
-	}
-	else {
-	  synapses_.prop_names = synparam_names;
-	}
-	//if nothing is set use GIDCollection for all neurons
-	//we get an offset of +1
-	if (!updateValue< GIDCollectionDatum >( din, "mapping", neurons)) {
-		const int first = 1;
-		const int last = nest::kernel().node_manager.size()-1;
-		neurons = GIDCollection(first,last);
-	}
-
-
-  //lookup synapse model
-  const Name model_name = getValue<Name>(din, "model");
-  const Token synmodel = nest::kernel().model_manager.get_synapsedict()->lookup(model_name);
-  synapses_.synmodel_id_ = static_cast<size_t>(synmodel);
-
-
+  //parse input parameters
+  set_status(din);
 }
 
 H5Synapses::~H5Synapses()
@@ -420,28 +382,69 @@ void H5Synapses::import(DictionaryDatum& dout)
     threadConnectNeurons(n_conSynapses);
     freeSynapses();
   }
-  
-  //tracelogger.end(0,"run");
-  
-  LOG (nest::M_INFO,
+
+  def< long >( dout, "readSynapses",  n_readSynapses);
+  def< long >( dout, "conSynapses",  n_conSynapses);
+  def< long >( dout, "memSynapses",  n_memSynapses);
+  def< long >( dout, "SynapsesInDatasets", n_SynapsesInDatasets);
+
+  /*LOG (nest::M_INFO,
       "H5Synapses::import",
       String::compose( "rank=%1\tn_readSynapses=%2\tn_conSynapses=%3\tn_memSynapses=%4\tn_SynapsesInDatasets=%5",
-                          rank, n_readSynapses, n_conSynapses, n_memSynapses, n_SynapsesInDatasets) );
+                          rank, n_readSynapses, n_conSynapses, n_memSynapses, n_SynapsesInDatasets) );*/
 }
 
-void H5Synapses::set_status( DictionaryDatum& d ) {
-	//use gid collection as mapping
-	if (!updateValue< GIDCollection >( d, "neurons", neurons )) {
-		nest::index first_neuron = 1;
-        nest::index last_neuron = nest::kernel().node_manager.size();
-		neurons = GIDCollection(first_neuron, last_neuron);
+void H5Synapses::set_status( const DictionaryDatum& din ) {
+	filename = getValue< std::string >(din, "file");
+	TokenArray isynparam_names = getValue<TokenArray>(din, "params");
+	for (int i=0; i<isynparam_names.size(); i++) {
+	  synparam_names.push_back(isynparam_names[i]);
 	}
-    //set stride if set, if not stride is 1
-    updateValue<long>(d, "stride", stride_);
+	if (synparam_names.size()<2)
+		throw BadProperty("parameter list has to contain delay and weight at least");
+	if (synparam_names[0] != "delay")
+		throw BadProperty("first synapse parameter has to be delay");
+	if (synparam_names[1] != "weight")
+		throw BadProperty("second synapse parameter has to be weight");
+
+
+	if (!updateValue< long >( din, names::synapses_per_rank, num_syanpses_per_process ))
+		num_syanpses_per_process = 524288;
+	if (!updateValue< long >( din, names::last_synapse, last_total_synapse ))
+		last_total_synapse = 0;
+	//set stride if set, if not stride is 1
+	updateValue<long>(din, "stride", stride_);
+
+	if (stride_<1)
+		throw BadProperty("stride has to be one or greater");
+
+	TokenArray hdf5_names;
+	//if set use different names for synapse model and hdf5 dataset columns
+	if (updateValue< TokenArray >( din, names::hdf5_names, hdf5_names)) {
+	  for (int i=0; i<hdf5_names.size(); i++) {
+		  synapses_.prop_names.push_back(hdf5_names[i]);
+		}
+	}
+	else {
+	  synapses_.prop_names = synparam_names;
+	}
+	//if nothing is set use GIDCollection for all neurons
+	//we get an offset of +1
+	if (!updateValue< GIDCollectionDatum >( din, "mapping", neurons)) {
+		//use all nodes in network
+		const int first = 1;
+		const int last = nest::kernel().node_manager.size()-1;
+		neurons = GIDCollection(first,last);
+	}
+
+	//lookup synapse model
+	const Name model_name = getValue<Name>(din, "model");
+	const Token synmodel = nest::kernel().model_manager.get_synapsedict()->lookup(model_name);
+	synapses_.synmodel_id_ = static_cast<size_t>(synmodel);
     
     //add kernels
     ArrayDatum kernels;
-    if (updateValue<ArrayDatum>(d, "kernels", kernels)) {
+    if (updateValue<ArrayDatum>(din, "kernels", kernels)) {
         for (int i=0; i< kernels.size(); i++) {
             DictionaryDatum kd = getValue< DictionaryDatum >( kernels[i] );
             const std::string kernel_name = getValue<std::string>( kd, "name" );
@@ -471,5 +474,4 @@ void H5Synapses::addKernel(std::string name, TokenArray params)
 			v[i] = params[i];
 		kernel.push_back< kernel_csaba<double> >(v);
 	}
-
 }

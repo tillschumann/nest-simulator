@@ -183,6 +183,12 @@ public:
     void execute( SLIInterpreter* ) const;
   } setstatus_idfunction;
 
+  class SetStatus_gdFunction : public SLIFunction
+  {
+  public:
+    void execute( SLIInterpreter* ) const;
+  } setstatus_gdfunction;
+
   class SetStatus_CDFunction : public SLIFunction
   {
   public:

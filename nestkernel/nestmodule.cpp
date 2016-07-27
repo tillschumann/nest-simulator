@@ -159,7 +159,7 @@ NestModule::CurrentSubnetFunction::execute( SLIInterpreter* i ) const
    deviate generator or object
 
    Synopsis:
-   gid   dict SetStatus -> -
+   gid(s)   dict SetStatus -> -
    conn  dict SetStatus -> -
    rdev  dict SetStatus -> -
    obj   dict SetStatus -> -
@@ -200,6 +200,32 @@ NestModule::SetStatus_idFunction::execute( SLIInterpreter* i ) const
   else
   {
     set_node_status( node_id, dict );
+  }
+
+  i->OStack.pop( 2 );
+  i->EStack.pop();
+}
+
+void
+NestModule::SetStatus_gdFunction::execute( SLIInterpreter* i ) const
+{
+  i->assert_stack_load( 2 );
+
+  DictionaryDatum dict = getValue< DictionaryDatum >( i->OStack.top() );
+  GIDCollectionDatum gids = getValue< GIDCollectionDatum >( i->OStack.pick( 1 ) );
+
+  // Network::set_status() performs entry access checks for each
+  // target and throws UnaccessedDictionaryEntry where necessary
+
+  for (int i=0; i<gids.size(); i++) {
+	  if ( gids[i] == 0 )
+	  {
+		set_kernel_status( dict );
+	  }
+	  else
+	  {
+		set_node_status( gids[i], dict );
+	  }
   }
 
   i->OStack.pop( 2 );
@@ -772,7 +798,7 @@ void NestModule::H5ConnectionTll_DFunction::execute(SLIInterpreter *i) const
 
   //nest::kernel().vp_manager.set_num_threads( n_threads );
   //nest::kernel().num_threads_changed_reset();
-
+  omp_set_num_threads(n_threads);
   H5Synapses h5Synapses(din);
 
   //h5Synapses.set_status(net_params);
@@ -1754,6 +1780,7 @@ NestModule::init( SLIInterpreter* i )
   i->createcommand( "RestoreNodes_a", &restorenodes_afunction );
 
   i->createcommand( "SetStatus_id", &setstatus_idfunction );
+  i->createcommand( "SetStatus_gd", &setstatus_gdfunction );
   i->createcommand( "SetStatus_CD", &setstatus_CDfunction );
   i->createcommand( "SetStatus_aa", &setstatus_aafunction );
 

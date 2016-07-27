@@ -51,6 +51,7 @@ statusdict /prgdocdir get (/examples/FacetsBenchmarks) join addpath
   trie
 } if
 [/integertype /dictionarytype] /SetStatus_id load addtotrie
+[/gidcollectiontype /dictionarytype] /SetStatus_gd load addtotrie
 [/connectiontype /dictionarytype] /SetStatus_CD load addtotrie
 def
 

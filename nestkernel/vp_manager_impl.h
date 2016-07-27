@@ -42,6 +42,8 @@ VPManager::get_num_virtual_processes() const
 inline bool
 VPManager::is_local_vp( thread vp ) const
 {
+  if (vp == invalid_thread_)
+	  return false;
   return kernel().mpi_manager.get_process_id( vp )
     == kernel().mpi_manager.get_rank();
 }
