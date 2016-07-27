@@ -293,59 +293,61 @@ public:
    * Move file pointer to for next function call
    * 
    */
-  void iterateOverSynapsesFromFiles(NESTSynapseList& synapses, uint64_t num_syns=0)
+  void iterateOverSynapsesFromFiles(NESTSynapseList& synapses)
   {       
-    if (is_num_syns_fixed_) 
-      num_syns = fixed_num_syns_;
+      assert(is_num_syns_fixed_);
     
+      /*std::vector<uint64_t> global_num_syns(NUM_PROCESSES);
+      uint64_t private_num_syns = num_syns;
     
-    std::vector<uint64_t> global_num_syns(NUM_PROCESSES);
-    uint64_t private_num_syns = num_syns;
+      MPI_Allgather(&private_num_syns, 1, MPI_UNSIGNED_LONG_LONG, &global_num_syns[0], 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+      uint64_t private_offset = std::accumulate(global_num_syns.begin(), global_num_syns.begin()+RANK, global_offset_);
+      global_offset_ = std::accumulate(global_num_syns.begin()+RANK, global_num_syns.end(), private_offset); // for next iteration
+      */
     
-    MPI_Allgather(&private_num_syns, 1, MPI_UNSIGNED_LONG_LONG, &global_num_syns[0], 1, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
-    uint64_t private_offset = std::accumulate(global_num_syns.begin(), global_num_syns.begin()+RANK, global_offset_);
-    global_offset_ = std::accumulate(global_num_syns.begin()+RANK, global_num_syns.end(), private_offset); // for next iteration
+      uint64_t private_offset += fixed_num_syns_ * RANK + global_offset_;
+      global_offset_ += fixed_num_syns_ * NUM_PROCESSES:
     
-    //load only neuron parameters which are needed based on NEST internal round robin fashion
+      //load only neuron parameters which are needed based on NEST internal round robin fashion
   
-    int64_t count = std::min((int64_t)num_syns, ((int64_t)total_num_syns_-(int64_t)private_offset));
-    if (count<0)
-      count=0;
-    H5View dataspace_view(count, private_offset); 
+      int64_t count = std::min((int64_t)num_syns, ((int64_t)total_num_syns_-(int64_t)private_offset));
+      if (count<0)
+          count=0;
+      H5View dataspace_view(count, private_offset);
     
-    hid_t dataspace_id = H5Dget_space(syn_dataset->getId());
-    hid_t memspace_id;
+      hid_t dataspace_id = H5Dget_space(syn_dataset->getId());
+      hid_t memspace_id;
     
-    //be careful if there are no synapses to load
-    if (dataspace_view.count[0]>0) {
-      H5Sselect_hyperslab (dataspace_id, H5S_SELECT_SET, dataspace_view.offset, dataspace_view.stride, dataspace_view.count, dataspace_view.block);
-      memspace_id = H5Screate_simple (1, dataspace_view.count, NULL);
-    }
-    else {
-      H5Sselect_none(dataspace_id);
-      memspace_id=H5Scopy(dataspace_id);
-      H5Sselect_none(memspace_id);
-    } 
+      //be careful if there are no synapses to load
+      if (dataspace_view.count[0]>0) {
+          H5Sselect_hyperslab (dataspace_id, H5S_SELECT_SET, dataspace_view.offset, dataspace_view.stride, dataspace_view.count, dataspace_view.block);
+          memspace_id = H5Screate_simple (1, dataspace_view.count, NULL);
+      }
+      else {
+          H5Sselect_none(dataspace_id);
+          memspace_id=H5Scopy(dataspace_id);
+          H5Sselect_none(memspace_id);
+      }
     
-    synapses.resize(dataspace_view.count[0]);
+      synapses.resize(dataspace_view.count[0]);
     
+      // setup collective read operation
+      hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
+      //H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
+      H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_INDEPENDENT);
     
-    // setup collective read operation
-    hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
-    H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
+      H5Dread (syn_dataset->getId(), syn_memtype_, memspace_id, dataspace_id, dxpl_id_, &synapses[0]);
     
-    H5Dread (syn_dataset->getId(), syn_memtype_, memspace_id, dataspace_id, dxpl_id_, &synapses[0]);
-    
-    H5Pclose(dxpl_id_);
+      H5Pclose(dxpl_id_);
   
-    H5Sclose (memspace_id);
-    H5Sclose (dataspace_id);
+      H5Sclose (memspace_id);
+      H5Sclose (dataspace_id);
     
-    // integrate NEST neuron id offset to synapses
-    integrateSourceNeurons(synapses, dataspace_view);
+      // integrate NEST neuron id offset to synapses
+      integrateSourceNeurons(synapses, dataspace_view);
     
-    // observer variable
-    n_readSynapses += dataspace_view.count[0];
+      // observer variable
+      n_readSynapses += dataspace_view.count[0];
   }
 };
 

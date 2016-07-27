@@ -335,7 +335,6 @@ H5Synapses::H5Synapses(const DictionaryDatum& din)
 	if (!updateValue< GIDCollectionDatum >( din, "mapping", neurons)) {
 		const int first = 1;
 		const int last = nest::kernel().node_manager.size()-1;
-		std::cout << "first=" << first << " last=" << last << std::endl;
 		neurons = GIDCollection(first,last);
 	}
 
