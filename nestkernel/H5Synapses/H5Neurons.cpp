@@ -109,6 +109,7 @@ GIDCollectionDatum H5Neurons::CreateSubnets(const GIDCollectionDatum& added_neur
     	}
     }
 
+
     //only supports one subnet so far
     return GIDCollection(TokenArray(gids[0]));
 }
@@ -117,23 +118,23 @@ GIDCollectionDatum H5Neurons::CreateSubnets(const GIDCollectionDatum& added_neur
  * Create Neurons in subnets using loaded parameters
  */
 GIDCollectionDatum H5Neurons::CreateNeurons()
-{  
+{
     const long non = neurons_.size();
     const nest::index first_neuron_gid = nest::kernel().node_manager.size();
     const nest::index last_neuron_gid = nest::kernel().node_manager.add_node(neurons_.model_id_, non);
-
+    
     GIDCollectionDatum added_neurons = GIDCollection(first_neuron_gid, last_neuron_gid);
     
     //set parameters of created neurons
     //ids of neurons are continously even though they might be in different subnets
     for (int i=0;i<non;i++) {
-    	int x = added_neurons[i];
-        nest::Node* node = nest::kernel().node_manager.get_node(added_neurons[i]);
+    	int gid = added_neurons[i];
+        if (nest::kernel().node_manager.is_local_gid(gid)) {
+        nest::Node* node = nest::kernel().node_manager.get_node(gid);
         if (node->is_local()) {
             DictionaryDatum d( new Dictionary );
-            
-            std::vector<float> values(neurons_[i].parameter_values_, neurons_[i].parameter_values_+neurons_.parameter_names.size());
-            
+            NESTNodeNeuron Nnn = neurons_[i];
+            std::vector<float> values(Nnn.parameter_values_, Nnn.parameter_values_+neurons_.parameter_names.size());
             //apply kernels
             values = kernel(values);
             
@@ -144,7 +145,7 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
             //pass sli objects to neuron
             node->set_status(d);
         }
+        }
     }
-
     return added_neurons;
 }
