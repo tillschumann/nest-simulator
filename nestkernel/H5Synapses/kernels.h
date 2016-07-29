@@ -100,4 +100,24 @@ struct kernel_csaba : public manipulate_kernel<T> {
 	}
 };
 
+template <typename T>
+struct kernel_rand : public manipulate_kernel<T> {
+	std::vector<bool> rs_;
+	librandom::RngPtr rng_;
+	kernel_rand(const int& tid, const std::vector<bool>& rs): rs_(rs)
+	{
+		rng_ = kernel().rng_manager.get_rng( tid );
+	}
+	std::vector<T> operator()(std::vector<T> values)
+	{
+		assert(values.size() == 1);
+
+		for (int i=0; i<rs_; i++)
+			if (rs_[i])
+				values[i] = rng_;
+
+		return values;
+	}
+};
+
 #endif /* KERNELS_H_ */

@@ -20,7 +20,7 @@ public:
     NESTNodeNeuron(const int& subnet);
     ~NESTNodeNeuron();
     
-    float parameter_values_[13];
+    std::vector<float> parameter_values_;
     int subnet_;
     
     //bool operator<(const NESTNodeNeuron& rhs) const;
@@ -41,6 +41,8 @@ public:
   NESTNodeNeuron operator[](std::size_t idx)
   {
     NESTNodeNeuron neuron(subsets_[idx]);
+
+    neuron.parameter_values_.resize(13);
     for (int i=0; i<13; i++)
       neuron.parameter_values_[i] = neuron_parameters_[idx*13+i];
     return neuron;

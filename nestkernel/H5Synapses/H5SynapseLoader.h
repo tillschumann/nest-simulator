@@ -55,7 +55,6 @@ protected:
   
   hid_t syn_memtype_;
   
-  bool     is_num_syns_fixed_;
   uint64_t fixed_num_syns_;
   
   std::vector < NeuronLink >::const_iterator it_neuronLinks_;
@@ -99,19 +98,16 @@ protected:
   }
   
 public:
-  H5SynapsesLoader(const std::string h5file, const std::vector<std::string> prop_names, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets, uint64_t fixed_num_syns=0, uint64_t lastSyn=0)
+  H5SynapsesLoader(const std::string h5file, const std::vector<std::string> prop_names, uint64_t& n_readSynapses, uint64_t& n_SynapsesInDatasets, uint64_t fixed_num_syns, uint64_t lastSyn=0)
   : global_offset_(0),
     n_readSynapses(n_readSynapses),
     n_SynapsesInDatasets(n_SynapsesInDatasets),
-    is_num_syns_fixed_(false)
+    fixed_num_syns_(fixed_num_syns)
   {
+	assert(fixed_num_syns_>0);
+
     MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESSES);
     MPI_Comm_rank(MPI_COMM_WORLD, &RANK);
-    
-    if (fixed_num_syns>0) {
-      is_num_syns_fixed_ = true;
-      fixed_num_syns_ = fixed_num_syns;
-    }
     
     
     hid_t fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -130,8 +126,6 @@ public:
     total_num_syns_ = getNumberOfSynapses();
     
     n_SynapsesInDatasets += total_num_syns_;
-    
-    //loadNeuronLinks();
     
      //create syn memtype
     syn_memtype_ = H5Tcreate (H5T_COMPOUND, sizeof (NESTNodeSynapse)); // sizeof (synapses) -> make function
@@ -184,8 +178,6 @@ public:
   
   void removeNotNeededNeuronLinks()
   {
-    //std::cout << "fixed_num_syns_=" << fixed_num_syns_ << "\ttotal_num_syns_=" << total_num_syns_ << "\tglobal_offset_=" << global_offset_ << std::endl;
-    
     std::vector < NeuronLink > tmp_neuronLinks;
     
     const uint64_t start = fixed_num_syns_ * RANK;
@@ -251,8 +243,7 @@ public:
     
     H5Sclose (dataspace_id);
     
-    if (is_num_syns_fixed_)
-      removeNotNeededNeuronLinks();
+    removeNotNeededNeuronLinks();
     
     std::stable_sort(neuronLinks.begin(), neuronLinks.end(), H5View::MinSynPtr);
     
@@ -294,9 +285,7 @@ public:
    * 
    */
   void iterateOverSynapsesFromFiles(NESTSynapseList& synapses)
-  {       
-      assert(is_num_syns_fixed_);
-    
+  {
       /*std::vector<uint64_t> global_num_syns(NUM_PROCESSES);
       uint64_t private_num_syns = num_syns;
     
