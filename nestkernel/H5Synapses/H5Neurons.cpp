@@ -50,18 +50,10 @@ H5Neurons::H5Neurons(const DictionaryDatum& din)
 
 void H5Neurons::addKernel(const std::string& name, TokenArray params)
 {
-	if (name == "add") {
-		std::vector<float> v(params.size());
-		for (int i=0; i<params.size(); i++)
-			v[i] = params[i];
-		kernel.push_back< kernel_add<float> >(v);
-	}
-	if (name == "multi") {
-		std::vector<float> v(params.size());
-		for (int i=0; i<params.size(); i++)
-			v[i] = params[i];
-		kernel.push_back< kernel_multi<float> >(v);
-	}
+	if (name == "add")
+		kernel.push_back< kernel_add<float> >(params);
+	else if (name == "multi")
+		kernel.push_back< kernel_multi<float> >(params);
 }
 
 void H5Neurons::import(DictionaryDatum& dout)

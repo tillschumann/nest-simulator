@@ -5,7 +5,7 @@
 #include "kernel_manager.h"
 #include "vp_manager_impl.h"
 
-NESTNodeSynapse::NESTNodeSynapse()
+/*NESTNodeSynapse::NESTNodeSynapse()
 {}
 NESTNodeSynapse::NESTNodeSynapse(const unsigned int& source_neuron, const unsigned int& target_neuron)
 {
@@ -13,7 +13,7 @@ NESTNodeSynapse::NESTNodeSynapse(const unsigned int& source_neuron, const unsign
 }
 NESTNodeSynapse::~NESTNodeSynapse()
 {}
-void NESTNodeSynapse::set(const unsigned int& source_neuron, const unsigned int& target_neuron)
+/*void NESTNodeSynapse::set(const unsigned int& source_neuron, const unsigned int& target_neuron)
 {
   source_neuron_ = source_neuron;
   target_neuron_ = target_neuron;
@@ -48,4 +48,4 @@ void NESTNodeSynapse::deserialize(unsigned int* buf)
 bool NESTNodeSynapse::operator<(const NESTNodeSynapse& rhs) const
 {
   return node_id_ < rhs.node_id_;
-}
+}*/

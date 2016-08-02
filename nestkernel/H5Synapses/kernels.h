@@ -48,8 +48,11 @@ struct kernel_combi : public manipulate_kernel<T> {
 template <typename T>
 struct kernel_multi : public manipulate_kernel<T> {
 	std::vector<T> multis_;
-	kernel_multi(const std::vector<T>& multis): multis_(multis)
-	{}
+	kernel_multi(TokenArray multis)
+	{
+        for (int i=0; i<multis.size(); i++)
+            multis_.push_back(multis[i]);
+    }
 	std::vector<T> operator()(std::vector<T> values)
 	{
 		assert(values.size() == multis_.size());
@@ -63,8 +66,11 @@ struct kernel_multi : public manipulate_kernel<T> {
 template <typename T>
 struct kernel_add : public manipulate_kernel<T> {
 	std::vector<T> adds_;
-	kernel_add(const std::vector<T>& adds): adds_(adds)
-	{}
+	kernel_add(TokenArray adds)
+	{
+        for (int i=0; i<adds.size(); i++)
+            adds_.push_back(adds[i]);
+    }
 	std::vector<T> operator()(std::vector<T> values)
 	{
 		assert(values.size() == adds_.size());
@@ -79,7 +85,7 @@ template <typename T>
 struct kernel_csaba : public manipulate_kernel<T> {
 	T lower;
 	T upper;
-	kernel_csaba(const std::vector<T>& boundaries)
+	kernel_csaba(TokenArray& boundaries)
 	{
 		assert(boundaries.size() == 2);
 		lower = boundaries[0];
@@ -100,7 +106,7 @@ struct kernel_csaba : public manipulate_kernel<T> {
 	}
 };
 
-template <typename T>
+/*template <typename T>
 struct kernel_rand : public manipulate_kernel<T> {
 	std::vector<bool> rs_;
 	librandom::RngPtr rng_;
@@ -118,6 +124,6 @@ struct kernel_rand : public manipulate_kernel<T> {
 
 		return values;
 	}
-};
+};*/
 
 #endif /* KERNELS_H_ */

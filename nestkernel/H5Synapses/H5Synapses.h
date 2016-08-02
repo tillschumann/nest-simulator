@@ -27,28 +27,31 @@ using namespace nest;
 class H5Synapses
 {
 private:
-  omp_lock_t tokenLock;
+  omp_lock_t tokenLock_;
   
-  std::vector<std::string> synparam_names;
-  
+  std::vector<std::string> model_params_;
   long stride_;
-
-  kernel_combi<double> kernel;
-  GIDCollectionDatum neurons;
-  
+  kernel_combi<double> kernel_;
+  GIDCollectionDatum mapping_;
   NESTSynapseList synapses_;
-  
-  std::string filename;
+    
+  size_t synmodel_id_
+    
+  std::string filename_;
 
-  long num_syanpses_per_process;
-  long last_total_synapse;
+  long num_syanpses_per_process_;
+  long last_total_synapse_;
 
-  void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses);
+  void singleConnect(NESTSynapseRef synapse, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses);
+    
   //void ConnectNeurons(uint64_t& n_conSynapses);
   uint64_t threadConnectNeurons(uint64_t& n_conSynapses);
   
   void freeSynapses();
   CommunicateSynapses_Status CommunicateSynapses();
+    
+    void sort();
+    void integrateMapping();
   
 
   void addKernel(std::string name, TokenArray params);

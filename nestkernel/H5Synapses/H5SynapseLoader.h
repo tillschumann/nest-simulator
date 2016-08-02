@@ -108,39 +108,35 @@ public:
 
     MPI_Comm_size(MPI_COMM_WORLD, &NUM_PROCESSES);
     MPI_Comm_rank(MPI_COMM_WORLD, &RANK);
-    
-    
+    //open hdf5 in parallel mode
     hid_t fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
-    
     file_id_ = H5Fopen (h5file.c_str(), H5F_ACC_RDONLY, fapl_id);
-    
     H5Pclose(fapl_id);
-    
     
     gid_ = H5Gopen(file_id_,"/",H5P_DEFAULT);
     
+    
     syn_dataset = new H5Dataset(this, "syn");
     
-   
+      
+    //read number of synapses
     total_num_syns_ = getNumberOfSynapses();
-    
     n_SynapsesInDatasets += total_num_syns_;
+    //adapt if specified
+    if (lastSyn>0) {
+        setLastSyn(lastSyn); // should be called berfore loadNeuronLinks
     
      //create syn memtype
-    syn_memtype_ = H5Tcreate (H5T_COMPOUND, sizeof (NESTNodeSynapse)); // sizeof (synapses) -> make function
+    syn_memtype_ = H5Tcreate (H5T_COMPOUND, sizeof(int) + sizeof(float)*prop_names.size()); //target + param values
     //target is always given
-    H5Tinsert (syn_memtype_, "target", HOFFSET (NESTNodeSynapse, target_neuron_), H5T_NATIVE_INT);
+    H5Tinsert (syn_memtype_, "target", HOFFSET (NESTNodeSynapse, property_pool_), H5T_NATIVE_INT); // first entry in pool is target id
     //additionally load following columns
-    for (int i=0; i< prop_names.size(); i++) {
-      H5Tinsert (syn_memtype_, prop_names[i].c_str(), HOFFSET (NESTNodeSynapse, prop_values_)+i*sizeof(double), H5T_NATIVE_DOUBLE);
-    }
-    
-    if (lastSyn>0)
-      setLastSyn(lastSyn); // should be called berfore loadNeuronLinks
-    
+    for (int i=0; i< prop_names.size(); i++)
+      H5Tinsert (syn_memtype_, prop_names[i].c_str(), HOFFSET (NESTNodeSynapse, property_pool_)+(1+i)*sizeof(float), H5T_NATIVE_FLOAT); //following entries in pool are param values
+      
+    //get source neuron dataset
     loadNeuronLinks();
-    
   }
   
   ~H5SynapsesLoader()
@@ -176,29 +172,27 @@ public:
     return total_num_syns_ <= global_offset_;
   }
   
-  void removeNotNeededNeuronLinks()
-  {
-    std::vector < NeuronLink > tmp_neuronLinks;
+    void removeNotNeededNeuronLinks()
+    {
+        std::vector < NeuronLink > tmp_neuronLinks;
     
-    const uint64_t start = fixed_num_syns_ * RANK;
-    const uint64_t end = fixed_num_syns_ * (RANK+1);
+        const uint64_t start = fixed_num_syns_ * RANK;
+        const uint64_t end = fixed_num_syns_ * (RANK+1);
     
-    //sort out not necessary neuron links
-    //best case: reduces neuronLinks size by around 1-1/NUM_PROCESSES 
-    for (int i=0; i<neuronLinks.size(); i++) {
-      //only synapses from global_offset_ to total_num_syns_ are loaded
-      if (/*neuronLinks[i].syn_ptr<total_num_syns_ &&*/ neuronLinks[i].syn_ptr+neuronLinks[i].syn_n > global_offset_) {
-	const uint64_t entry_start = (neuronLinks[i].syn_ptr - global_offset_) % (fixed_num_syns_ * NUM_PROCESSES);
-	const uint64_t entry_end = (neuronLinks[i].syn_ptr+neuronLinks[i].syn_n - global_offset_) % (fixed_num_syns_ * NUM_PROCESSES);
+        //sort out not necessary neuron links
+        //best case: reduces neuronLinks size by around 1-1/NUM_PROCESSES
+        for (int i=0; i<neuronLinks.size(); i++) {
+            //only synapses from global_offset_ to total_num_syns_ are loaded
+            if (/*neuronLinks[i].syn_ptr<total_num_syns_ &&*/ neuronLinks[i].syn_ptr+neuronLinks[i].syn_n > global_offset_) {
+                const uint64_t entry_start = (neuronLinks[i].syn_ptr - global_offset_) % (fixed_num_syns_ * NUM_PROCESSES);
+                const uint64_t entry_end = (neuronLinks[i].syn_ptr+neuronLinks[i].syn_n - global_offset_) % (fixed_num_syns_ * NUM_PROCESSES);
 	
-	if ((entry_start >= start && entry_start < end) || (entry_end > start && entry_end <= end) || (entry_start <= start && entry_end >= end)) {
-	  tmp_neuronLinks.push_back(neuronLinks[i]);
-	}
-      }
+                if ((entry_start >= start && entry_start < end) || (entry_end > start && entry_end <= end) || (entry_start <= start && entry_end >= end))
+                    tmp_neuronLinks.push_back(neuronLinks[i]);\
+            }
+        }
+        neuronLinks.swap(tmp_neuronLinks);
     }
-    
-    neuronLinks.swap(tmp_neuronLinks);
-  }
   
   
   /*
@@ -207,77 +201,73 @@ public:
   
   void loadNeuronLinks()
   {
-    H5Dataset neuronLink_dataset(this,"neuron");
+      H5Dataset neuronLink_dataset(this,"neuron");
     
-    hid_t memtype = H5Tcreate (H5T_COMPOUND, sizeof (NeuronLink)); // sizeof (neurons) -> make function
-    //additionally load following columns
+      hid_t memtype = H5Tcreate (H5T_COMPOUND, sizeof (NeuronLink));
+      H5Tinsert (memtype, "id", HOFFSET (NeuronLink, id), H5T_NATIVE_INT);
+      H5Tinsert (memtype, "syn_n", HOFFSET (NeuronLink, syn_n), H5T_NATIVE_INT);
+      H5Tinsert (memtype, "syn_ptr", HOFFSET (NeuronLink, syn_ptr), H5T_NATIVE_ULLONG);
     
-    H5Tinsert (memtype, "id", HOFFSET (NeuronLink, id), H5T_NATIVE_INT);
-    H5Tinsert (memtype, "syn_n", HOFFSET (NeuronLink, syn_n), H5T_NATIVE_INT);
-    H5Tinsert (memtype, "syn_ptr", HOFFSET (NeuronLink, syn_ptr), H5T_NATIVE_ULLONG);
+      hid_t dataspace_id = H5Dget_space(neuronLink_dataset.getId());
     
-    hid_t dataspace_id = H5Dget_space(neuronLink_dataset.getId());
-    
-    hsize_t count;
-    H5Sget_simple_extent_dims(dataspace_id, &count, NULL);
+      hsize_t count;
+      H5Sget_simple_extent_dims(dataspace_id, &count, NULL);
    
-    neuronLinks.resize(count);
-
+      neuronLinks.resize(count);
     
-    //load dataset only on one node
-    if (RANK==0) {
-      hid_t memspace_id = H5Screate_simple (1, &count, NULL);
+      //load dataset only on one node
+      if (RANK==0) {
+          hid_t memspace_id = H5Screate_simple (1, &count, NULL);
       
-      hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
-      //H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
-      H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_INDEPENDENT);
+          hid_t dxpl_id_ = H5Pcreate(H5P_DATASET_XFER);
+          H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_INDEPENDENT);
 
-      H5Dread (neuronLink_dataset.getId(), memtype, memspace_id, dataspace_id, dxpl_id_, &neuronLinks[0]);
-      
-      H5Pclose(dxpl_id_);
-
-      H5Sclose (memspace_id);
-    }
-    //broadcast entries to all nodes
-    MPI_Bcast(&neuronLinks[0], count*sizeof(NeuronLink), MPI_CHAR, 0, MPI_COMM_WORLD);
+          H5Dread (neuronLink_dataset.getId(), memtype, memspace_id, dataspace_id, dxpl_id_, &neuronLinks[0]);
+          H5Pclose(dxpl_id_);
+          H5Sclose (memspace_id);
+      }
+      //broadcast entries to all nodes
+      MPI_Bcast(&neuronLinks[0], count*sizeof(NeuronLink), MPI_CHAR, 0, MPI_COMM_WORLD);
     
-    H5Sclose (dataspace_id);
+      H5Sclose (dataspace_id);
     
-    removeNotNeededNeuronLinks();
+      //try to reduce memory consumption
+      //could be moved to reading only a subset per rank
+      removeNotNeededNeuronLinks();
     
-    std::stable_sort(neuronLinks.begin(), neuronLinks.end(), H5View::MinSynPtr);
+      std::stable_sort(neuronLinks.begin(), neuronLinks.end(), H5View::MinSynPtr);
     
-    it_neuronLinks_=neuronLinks.begin();
+      //set iterator
+      it_neuronLinks_=neuronLinks.begin();
   }
  
-  /**
-   * search source neuron
-   * 
-   * could be optimized using a binary search alg
-   */
-  void integrateSourceNeurons(NESTSynapseList& synapses, const H5View& view)
-  {
-    uint64_t index = view.view2dataset(0);
+      /**
+       * search source neuron
+       *
+       * could be optimized using a binary search alg
+       */
+      void integrateSourceNeurons(NESTSynapseList& synapses, const H5View& view)
+      {
+          uint64_t index = view.view2dataset(0);
     
-    for (int i=0; i<synapses.size(); i++)
-    {      
-      index = view.view2dataset(i);
+          for (int i=0; i<synapses.size(); i++) {
+              index = view.view2dataset(i);
       
-      while (it_neuronLinks_<neuronLinks.end()) {
-	if (index >= (it_neuronLinks_->syn_ptr+it_neuronLinks_->syn_n)) {
-	  it_neuronLinks_++;
-	}
-	else if (index < it_neuronLinks_->syn_ptr) {
-	  std::cout << "ERROR:" << "index=" << index << "\tsyn_ptr=" << it_neuronLinks_->syn_ptr << std::endl;
-	  break;
-	}
-	else {
-	  synapses[i].source_neuron_ = it_neuronLinks_->id;
-	  break;
-	}
+              while (it_neuronLinks_<neuronLinks.end()) {
+                  if (index >= (it_neuronLinks_->syn_ptr+it_neuronLinks_->syn_n)) {
+                      it_neuronLinks_++;
+                  }
+                  else if (index < it_neuronLinks_->syn_ptr) {
+                      std::cout << "ERROR:" << "index=" << index << "\tsyn_ptr=" << it_neuronLinks_->syn_ptr << std::endl;
+                      break;
+                  }
+                  else {
+                      synapses[i].source_neuron_ = it_neuronLinks_->id;
+                      break;
+                  }
+              }
+          }
       }
-    }
-  }
   
   /*
    * Get num_syns synapses from datasets collectivly
@@ -325,7 +315,7 @@ public:
       //H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_COLLECTIVE);
       H5Pset_dxpl_mpio(dxpl_id_, H5FD_MPIO_INDEPENDENT);
     
-      H5Dread (syn_dataset->getId(), syn_memtype_, memspace_id, dataspace_id, dxpl_id_, &synapses[0]);
+      H5Dread (syn_dataset->getId(), syn_memtype_, memspace_id, dataspace_id, dxpl_id_, synapses.property_pool_.begin());
     
       H5Pclose(dxpl_id_);
   
