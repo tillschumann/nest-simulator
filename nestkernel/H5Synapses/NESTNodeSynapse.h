@@ -12,33 +12,6 @@ typedef unsigned long int uint64_t;
 
 using namespace nest;
 
-/*class NESTNodeSynapse
-{
-private:
-public:
-    NESTNodeSynapse();
-    NESTNodeSynapse(const unsigned int& source_neuron_, const unsigned int&
-target_neuron_);
-    ~NESTNodeSynapse();
-
-
-    unsigned int source_neuron_;
-    unsigned int target_neuron_;
-    unsigned int node_id_;
-
-
-    double prop_values_[5];
-
-    //unsigned int num_used_prop_values_;
-
-    void set(const unsigned int& source_neuron_, const unsigned int&
-target_neuron_);
-
-    void integrateMapping(const GIDCollection& gidc);
-
-    bool operator<(const NESTNodeSynapse& rhs) const;
-};*/
-
 struct NESTSynapseRef
 {
   unsigned int& source_neuron_;
@@ -148,21 +121,13 @@ struct NESTSynapseRef
 };
 
 
-class NESTSynapseList
+struct NESTSynapseList
 {
-  // private:
-  // std::vector < NESTNodeSynapse > synapses;
-
-
-public:
   std::vector< unsigned int > source_neurons;
   std::vector< unsigned int > node_id_;
   std::vector< char > property_pool_;
-
-  // int synmodel_id_;
-
+  std::vector< std::string > prop_names_;
   int num_params_;
-  std::vector< std::string > prop_names;
 
   NESTNodeSynapse( const std::vector&< std::string > prop_names )
     : prop_names( prop_names )
@@ -172,13 +137,6 @@ public:
     const num_params = prop_names.size() + 1;
     property_pool.resize( num_params_ * sizeof( float ) );
   }
-
-  /*NESTSynapseRef operator[](std::size_t idx)
-  {
-      const int pool_idx = idx * num_params_ * sizeof(float);
-      return NESTSynapseRef(source_neurons[idx], node_id_[idx],
-  &property_pool[pool_idx]);
-  };*/
   const NESTNodeSynapse& operator[]( std::size_t idx )
   {
     const int pool_idx = idx * num_params_ * sizeof( float );
@@ -206,30 +164,6 @@ public:
   {
     return source_neurons.size();
   }
-
-  /*std::vector < NESTNodeSynapse >::iterator begin()
-  {
-    return synapses.begin();
-  }
-  std::vector < NESTNodeSynapse >::const_iterator begin() const
-  {
-    return synapses.begin();
-  }
-  std::vector < NESTNodeSynapse >::iterator end()
-  {
-    return synapses.end();
-  }
-  std::vector < NESTNodeSynapse >::const_iterator end() const
-  {
-    return synapses.end();
-  }*/
-  /*void push_back(const NESTNodeSynapse& syn)
-  {
-    synapses.push_back(syn);
-  }*/
-
-  /* return number of bytes per entry
-   */
 };
 
 #endif

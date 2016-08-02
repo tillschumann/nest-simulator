@@ -20,10 +20,6 @@
 
 #include "vp_manager_impl.h"
 
-//#include "poisson_randomdev.h"
-
-//#include "communicator.h"
-
 #include <stdio.h>
 
 #ifdef IS_BLUEGENE_Q

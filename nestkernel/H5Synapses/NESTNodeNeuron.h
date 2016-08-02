@@ -21,8 +21,6 @@ public:
 
   std::vector< float > parameter_values_;
   int subnet_;
-
-  // bool operator<(const NESTNodeNeuron& rhs) const;
 };
 
 class NESTNeuronList

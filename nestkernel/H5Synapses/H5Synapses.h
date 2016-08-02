@@ -56,7 +56,6 @@ private:
     std::vector< const Token* > v_ptr,
     uint64_t& n_conSynapses );
 
-  // void ConnectNeurons(uint64_t& n_conSynapses);
   uint64_t threadConnectNeurons( uint64_t& n_conSynapses );
 
   void freeSynapses();
