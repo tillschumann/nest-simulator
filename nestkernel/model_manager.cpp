@@ -349,7 +349,7 @@ ModelManager::set_synapse_defaults_( index model_id,
   params->clear_access_flags();
   assert_valid_syn_id( model_id );
   
-  KernelException* tmp_exception = NULL;
+  BadProperty* tmp_exception = NULL;
 #ifdef _OPENMP
 #pragma omp parallel
   {
@@ -380,7 +380,7 @@ ModelManager::set_synapse_defaults_( index model_id,
   
   if ( tmp_exception != NULL )
   {
-    BadProperty e = *static_cast<BadProperty*>(tmp_exception);
+    BadProperty e = *tmp_exception;
     delete tmp_exception;
     throw e;
   }
