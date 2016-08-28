@@ -1,19 +1,17 @@
 #include "NESTNodeSynapse.h"
 //#include "nmpi.h"
-#include <cstring>
 
-#include "kernel_manager.h"
-#include "vp_manager_impl.h"
-
-NESTNodeSynapse::NESTNodeSynapse()
+/*NESTNodeSynapse::NESTNodeSynapse()
 {}
-NESTNodeSynapse::NESTNodeSynapse(const unsigned int& source_neuron, const unsigned int& target_neuron)
+NESTNodeSynapse::NESTNodeSynapse(const unsigned int& source_neuron, const
+unsigned int& target_neuron)
 {
   set(source_neuron, target_neuron);
 }
 NESTNodeSynapse::~NESTNodeSynapse()
 {}
-void NESTNodeSynapse::set(const unsigned int& source_neuron, const unsigned int& target_neuron)
+/*void NESTNodeSynapse::set(const unsigned int& source_neuron, const unsigned
+int& target_neuron)
 {
   source_neuron_ = source_neuron;
   target_neuron_ = target_neuron;
@@ -28,7 +26,7 @@ void NESTNodeSynapse::integrateMapping(const GIDCollection& gidc)
   target_neuron_ = gidc[target_neuron_];
 
   const nest::index vp = nest::kernel().vp_manager.suggest_vp(target_neuron_);
-  node_id_  = nest::kernel().mpi_manager.get_process_id(vp);  
+  node_id_  = nest::kernel().mpi_manager.get_process_id(vp);
 }
 void NESTNodeSynapse::serialize(unsigned int* buf)
 {
@@ -42,10 +40,10 @@ void NESTNodeSynapse::deserialize(unsigned int* buf)
   source_neuron_ = buf[0];
   target_neuron_ = buf[1];
   node_id_ = buf[2];
-  
+
   memcpy(&prop_values_[0], &buf[3], 5*sizeof(double));
 }
 bool NESTNodeSynapse::operator<(const NESTNodeSynapse& rhs) const
 {
   return node_id_ < rhs.node_id_;
-}
+}*/

@@ -27,31 +27,35 @@ using namespace nest;
 class H5Synapses
 {
 private:
-  omp_lock_t tokenLock;
-  
-  std::vector<std::string> synparam_names;
-  
-  long stride_;
+    omp_lock_t tokenLock_;
 
-  kernel_combi<double> kernel;
-  GIDCollectionDatum neurons;
-  
-  NESTSynapseList synapses_;
-  
-  std::string filename;
+    std::vector< std::string > model_params_;
+    long stride_;
+    kernel_combi< double > kernel_;
+    GIDCollectionDatum mapping_;
+    NESTSynapseList synapses_;
 
-  long num_syanpses_per_process;
-  long last_total_synapse;
+    size_t synmodel_id_;
 
-  void singleConnect(NESTNodeSynapse& synapse, nest::index synmodel_id_, nest::Node* const target_node, const nest::thread target_thread,DictionaryDatum& d, std::vector<const Token*> v_ptr, uint64_t& n_conSynapses);
-  //void ConnectNeurons(uint64_t& n_conSynapses);
-  uint64_t threadConnectNeurons(uint64_t& n_conSynapses);
-  
-  void freeSynapses();
-  CommunicateSynapses_Status CommunicateSynapses();
-  
+    std::string filename_;
 
-  void addKernel(std::string name, TokenArray params);
+    long num_syanpses_per_process_;
+    long last_total_synapse_;
+
+    void singleConnect( const int& thrd, NESTSynapseRef synapse,
+            const nest::index t_gid,
+      uint64_t& n_conSynapses );
+
+    uint64_t threadConnectNeurons( NESTSynapseList& synapses, uint64_t& n_conSynapses );
+
+    void freeSynapses( NESTSynapseList& synapses );
+    CommunicateSynapses_Status CommunicateSynapses( NESTSynapseList& synapses );
+
+    void sort( NESTSynapseList& synapses );
+    void integrateMapping( NESTSynapseList& synapses );
+
+
+    void addKernel( std::string name, TokenArray params );
 
 public:
   H5Synapses(const DictionaryDatum& din);
