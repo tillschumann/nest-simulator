@@ -83,14 +83,14 @@ uint64_t H5Synapses::threadConnectNeurons(uint64_t& n_conSynapses)
  
   
   uint64_t shared, persist, heapavail, stackavail, stack, heap, guard, mmap;
-    /*Kernel_GetMemorySize(KERNEL_MEMSIZE_SHARED, &shared);
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_SHARED, &shared);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_PERSIST, &persist);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAPAVAIL, &heapavail);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_STACKAVAIL, &stackavail);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_STACK, &stack);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_HEAP, &heap);
     Kernel_GetMemorySize(KERNEL_MEMSIZE_GUARD, &guard);
-    Kernel_GetMemorySize(KERNEL_MEMSIZE_MMAP, &mmap);*/
+    Kernel_GetMemorySize(KERNEL_MEMSIZE_MMAP, &mmap);
     
     std::stringstream ss;
     ss << "threadConnectNeurons\tnew_cons=" << synapses_.size() << "\t"

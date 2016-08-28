@@ -182,12 +182,12 @@ public:
 
 
 private:
-  double_t weight_;
-  double_t U_;       //!< unit increment of a facilitating synapse
-  double_t u_;       //!< dynamic value of probability of release
-  double_t x_;       //!< current fraction of the synaptic weight
-  double_t tau_rec_; //!< [ms] time constant for recovery
-  double_t tau_fac_; //!< [ms] time constant for facilitation
+  float_t weight_;
+  float_t U_;       //!< unit increment of a facilitating synapse
+  float_t u_;       //!< dynamic value of probability of release
+  float_t x_;       //!< current fraction of the synaptic weight
+  float_t tau_rec_; //!< [ms] time constant for recovery
+  float_t tau_fac_; //!< [ms] time constant for facilitation
 };
 
 
