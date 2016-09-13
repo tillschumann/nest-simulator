@@ -1,7 +1,9 @@
 #include <iostream>
 #include <vector>
 
-#include "nest_kernel.h"
+#include "kernel_manager.h"
+#include "nest_datums.h"
+#include "gid_collection.h"
 
 #ifndef NESTNODESYNAPSE_CLASS
 #define NESTNODESYNAPSE_CLASS
@@ -11,24 +13,6 @@ typedef long int int64_t;
 typedef unsigned int uint32_t;
 typedef unsigned long int uint64_t;
 
-struct GIDCollection
-{
-    size_t offset;
-    size_t size;
-
-    GIDCollection(const size_t& offset = 0, const size_t& size = -1):
-        offset(offset),
-        size(size)
-    {}
-
-    inline size_t operator[](const size_t& idx) const
-    {
-        assert(idx<size);
-        return idx+offset;
-    }
-};
-
-typedef GIDCollection GIDCollectionDatum;
 
 template <typename T>
 struct mpi_buffer
@@ -146,12 +130,13 @@ struct NESTSynapseRef
       params_[ j ] = *reinterpret_cast< float* >( &buf[i++] );
   }
   void
-  integrateMapping( const GIDCollection& gidc )
+  integrateMapping( const GIDCollectionDatum& gidc )
   {
     source_neuron_ = gidc[ source_neuron_ ];
     target_neuron_ = gidc[ target_neuron_ ];
-
-    node_id_ = nest::kernel().mpi_manager.suggest_rank( target_neuron_ );
+    
+    const nest::thread target_vp = nest::kernel().vp_manager.suggest_vp( target_neuron_ );
+    node_id_ = nest::kernel().mpi_manager.get_process_id( target_vp );
   }
 
   NESTSynapseRef&

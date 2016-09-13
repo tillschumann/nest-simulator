@@ -42,9 +42,7 @@ private:
     long num_syanpses_per_process_;
     long last_total_synapse_;
 
-    void singleConnect( const int& thrd, NESTSynapseRef synapse,
-            const nest::index t_gid,
-      uint64_t& n_conSynapses );
+    void singleConnect(const int& thrd, NESTSynapseRef synapse, nest::index synmodel_id, nest::Node* const target_node, const nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses );
 
     uint64_t threadConnectNeurons( NESTSynapseList& synapses, uint64_t& n_conSynapses );
 

@@ -12,6 +12,7 @@
 
 
 H5Neurons::H5Neurons(const DictionaryDatum& din)
+//: kernel(nest::kernel().vp_manager.get_num_threads())
 {
     filename = getValue< std::string >(din, "file");
     TokenArray param_names = getValue<TokenArray>(din, "params");
@@ -134,13 +135,11 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
         if (node->is_local()) {
             DictionaryDatum d( new Dictionary );
             NESTNodeNeuron Nnn = neurons_[i];
-            std::vector<float> values(Nnn.parameter_values_, Nnn.parameter_values_+neurons_.parameter_names.size());
-            //apply kernels
-            values = kernel(values);
+            std::vector<float>* values = kernel( Nnn.parameter_values_.begin(), Nnn.parameter_values_.end() );
             
             //copy values into sli data objects
             for (int j=0; j<model_param_names.size(); j++) {
-               def< double >( d, model_param_names[j], values[j] );
+               def< double >( d, model_param_names[j], (*values)[j] );
             }
             //pass sli objects to neuron
             node->set_status(d);
