@@ -22,14 +22,15 @@ struct private_vector
     typedef T type_name;
     std::vector< std::vector< type_name > > all_vectors;
 
-    private_vector() : all_vectors( kernel().vp_manager.get_num_threads() )
+    private_vector() : all_vectors( nest::kernel().vp_manager.get_num_threads() )
     {
-    	assert(kernel_available());
+    	std::cout << "all_vectors size=" << all_vectors.size() << std::endl;
     }
 
     std::vector< T >* operator()()
     {
-        return &(all_vectors[kernel().vp_manager.get_thread_id()]);
+    	std::cout << "get_thread_id=" << nest::kernel().vp_manager.get_thread_id() << std::endl;
+        return &(all_vectors[ nest::kernel().vp_manager.get_thread_id() ]);
     }
 };
 
@@ -59,8 +60,8 @@ struct kernel_combi
   std::vector< manipulate_kernel< type_name >* > kernels_;
   kernel_combi( )
   {
-    manipulate_kernel< type_name >* k = new manipulate_kernel< type_name >( );
-    kernels_.push_back( k );
+    //manipulate_kernel< type_name >* k = new manipulate_kernel< type_name >( );
+    //kernels_.push_back( k );
   }
 
   ~kernel_combi()
@@ -93,18 +94,17 @@ struct kernel_combi
   std::vector<type_name>*
   operator()( Tin* begin, Tin* end )
   {
-      pv()->resize(end-begin);
+	  std::vector<type_name>* result_vector = pv();
+	  result_vector->resize(end-begin);
+
+      std::copy(begin, end, result_vector->begin());
 
 
-
-      std::vector<type_name>* result_vector = pv();
-      int i=0;
-      for (Tin* ptr=begin;ptr<end; ptr++)
-          (*result_vector)[i++] = *ptr;
-      //std::copy(begin, end, result_vector->begin());
       for ( int i = 0; i < kernels_.size(); i++ ) {
           result_vector = ( *kernels_[ i ] )( result_vector->begin(), result_vector->end());
       }
+
+
       return result_vector;
   }
 

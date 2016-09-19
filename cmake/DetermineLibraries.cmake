@@ -75,11 +75,12 @@ endif ()
 #Find HDF5
 set( HAVE_HDF5 OFF )
 if ( with-hdf5 )
-  if ( NOT ${with-hdf5} STREQUAL "ON" )
+  #if ( NOT ${with-hdf5} STREQUAL "ON" )
     # if set, use this prefix
-    find_path( HDF5_INCLUDE_DIRS NAMES hdf5.h HINTS ${with-hdf5}/include )
-    find_library( HDF5_LIBRARIES NAMES hdf5 HINTS ${with-hdf5}/lib ) 
-  endif ()
+    # find_path( HDF5_INCLUDE_DIRS NAMES hdf5.h HINTS ${with-hdf5}/include )
+    # find_library( HDF5_LIBRARIES NAMES hdf5 HINTS ${with-hdf5}/lib ) 
+    find_package( HDF5 )
+  #endif ()
 endif ()
 
 # Find Python

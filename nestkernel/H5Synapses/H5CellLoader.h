@@ -60,7 +60,7 @@ public:
   /*
    * Load subnet dataset from hdf5 file
    */
-  void loadSubnets(const uint64_t& numberOfNeurons, const std::string& subnet_name, NESTNeuronList& neurons)
+  void loadSubnets(const uint64_t& numberOfNeurons, const std::string& subnet_name, NeuronList& neurons)
   {
       //need subnet information of all nodes
       std::vector< int > buffer_int(numberOfNeurons);
@@ -84,7 +84,7 @@ public:
    * mod_offset: id of first new created neuron
    * neurons: output list
    */
-  void loadLocalParameters(const std::vector<std::string>& dataset_names, const uint64_t numberOfNeurons, const int mod_offset, NESTNeuronList& neurons)
+  void loadLocalParameters(const std::vector<std::string>& dataset_names, const uint64_t numberOfNeurons, const int mod_offset, NeuronList& neurons)
   { 
     
     // target neuron ids are based on neuron_id MOD numberOfNodes:
@@ -127,8 +127,9 @@ public:
       // hyperslab cannot be used, because neurons object can contain different datatypes than floats!!
       int j_local=0;
       for (int j=first_neuron;j<numberOfNeurons;j+=num_processes) {
-	neurons.neuron_parameters_[j*13+i] = buffer_flt[j_local];
-	j_local++;
+    	  assert((j*dataset_names.size()+i)<neurons.neuron_parameters_.size());
+    	  neurons.neuron_parameters_[j*dataset_names.size()+i] = buffer_flt[j_local];
+    	  j_local++;
       }
     }
 

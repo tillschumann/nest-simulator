@@ -1,25 +1,24 @@
 #include <iostream>
 #include <vector>
 
-#include "kernel_manager.h"
-#include "nest_datums.h"
-#include "gid_collection.h"
 
 #ifndef NESTNODESYNAPSE_CLASS
 #define NESTNODESYNAPSE_CLASS
 
-typedef int int32_t;
-typedef long int int64_t;
-typedef unsigned int uint32_t;
-typedef unsigned long int uint64_t;
-
-
-template <typename T>
-struct mpi_buffer
+namespace h5import
 {
+
+/**
+ * buffer class for mpi communication
+ */
+template <typename T>
+class mpi_buffer
+{
+private:
     std::vector<T> buf;
     size_t n;
     size_t readalready;
+public:
     mpi_buffer(size_t n, bool fill=false): n(n), readalready(0)
     {
         if (fill)
@@ -29,24 +28,23 @@ struct mpi_buffer
     }
     T* begin()
     {
-        return &buf[0];
+        return &buf[readalready];
     }
     size_t size()
     {
-        return buf.size();
+        return buf.size()-readalready;
     }
     void push_back(const T& v)
     {
-        //assert(buf.size()>n);
         buf.push_back(v);
     }
     T& operator[](const size_t& idx)
     {
-	return buf[idx];		
+    return buf[idx+readalready];
     }
     const T& operator[](const size_t& idx) const
     {
-	return buf[idx];
+    return buf[idx+readalready];
     }
     T& pop_front()
     {
@@ -60,15 +58,21 @@ struct mpi_buffer
     }
 };
 
-struct NESTSynapseRef
+/**
+ * reference object to an entry of SynapseList
+ * 
+ */
+struct SynapseRef
 {
     uint32_t& source_neuron_;
     uint32_t& target_neuron_;
     uint32_t& node_id_;
 
-  struct ParamPtr
+  class ParamPtr
   {
-    float* ptr_;
+  private:
+    float* ptr_; //union datatype is probably nicer
+  public:
     size_t n_;
     ParamPtr( float* ptr, const size_t& n )
       : ptr_( ptr ), n_(n)
@@ -78,37 +82,39 @@ struct NESTSynapseRef
     {
       return *( ptr_ + i );
     }
-    float*
-    begin() const
+    float* begin() const
     {
       return ptr_;
     }
-    float*
-    end() const
+    float* end() const
     {
       return ptr_ + n_;
     }
-    size_t
-    size()
+    size_t size() const
     {
       return n_;
     }
   } params_;
 
-  NESTSynapseRef( uint32_t& source_neurons,
-          uint32_t& node_id,
-    const size_t& num_params,
-    char* pool_entry )
-    : source_neuron_( source_neurons )
+  /**
+   * Create SynapseRef object using the passed variable as memory locations
+   */
+  SynapseRef( uint32_t& source_neuron,
+              uint32_t& node_id,
+              const uint32_t& num_params,
+    		  char* pool_entry )
+    : source_neuron_( source_neuron )
     , target_neuron_( *( reinterpret_cast< uint32_t* >( pool_entry ) ) )
     , node_id_( node_id )
     , params_( reinterpret_cast< float* >( pool_entry ) + 1, num_params )
   {}
 
-  int
-  serialize( mpi_buffer<int>& buf, size_t i )
+  /**
+   * Serialize and write bytes to the passed mpi_buffer
+   * i is used as starting adress in the mpi_buffer
+   */
+  size_t serialize( mpi_buffer<int>& buf, size_t i )
   {
-    //const int begin_size = buf.size();
     const size_t begin_i = i;
     buf[i++] = source_neuron_;
     buf[i++] = target_neuron_;
@@ -119,8 +125,12 @@ struct NESTSynapseRef
 
     return i-begin_i;
   }
-  void
-  deserialize( mpi_buffer<int>& buf, size_t i )
+  /**
+   * deserialize mpi buffer and copy back into the memory
+   * locations given by the SynapseRef object
+   * i is used as the starting adress in the mpi_buffer
+   */
+  void deserialize( mpi_buffer<int>& buf, size_t i )
   {
     source_neuron_ = buf[i++];
     target_neuron_ = buf[i++];
@@ -129,18 +139,8 @@ struct NESTSynapseRef
     for ( int j = 0; j < params_.size(); j++ )
       params_[ j ] = *reinterpret_cast< float* >( &buf[i++] );
   }
-  void
-  integrateMapping( const GIDCollectionDatum& gidc )
-  {
-    source_neuron_ = gidc[ source_neuron_ ];
-    target_neuron_ = gidc[ target_neuron_ ];
-    
-    const nest::thread target_vp = nest::kernel().vp_manager.suggest_vp( target_neuron_ );
-    node_id_ = nest::kernel().mpi_manager.get_process_id( target_vp );
-  }
 
-  NESTSynapseRef&
-  operator=( const NESTSynapseRef& r )
+  SynapseRef& operator=( const SynapseRef& r )
   {
     source_neuron_ = r.source_neuron_;
     target_neuron_ = r.target_neuron_;
@@ -150,80 +150,67 @@ struct NESTSynapseRef
     std::copy( r.params_.begin(), r.params_.end(), params_.begin() );
     return *this;
   }
-
-  NESTSynapseRef&
-  swap( NESTSynapseRef& r )
-  {
-    // create buf object
-      uint32_t source_neuron_tmp;
-      uint32_t node_id_tmp;
-    std::vector< char > pool_tmp(
-      params_.size() * sizeof( float ) + sizeof( int ) );
-    NESTSynapseRef buf(
-      source_neuron_tmp, node_id_tmp, params_.size(), &pool_tmp[0] );
-
-    buf = *this;
-    *this = r;
-    r = buf;
-
-    return *this;
-  }
 };
 
 
-struct NESTSynapseList
+class SynapseList
 {
+private:
   std::vector< uint32_t > source_neurons;
   std::vector< uint32_t > node_id_;
-  std::vector< char > property_pool_;
-  std::vector< std::string > prop_names_;
-  int num_params_;
-
-  NESTSynapseList(): num_params_(0)
+  size_t num_params_;
+public:
+	std::vector< char > property_pool_;
+ /**
+  * Create a SynapseList with a the given number of parameters
+  */
+  SynapseList( const size_t& num_params ): num_params_( num_params )
   {}
 
-  void set_properties( const std::vector< std::string >& prop_names )
+  inline size_t get_num_params() const
   {
-      prop_names_ = prop_names;
-      num_params_ = prop_names.size();
+	  return num_params_;
   }
-  NESTSynapseRef operator[]( std::size_t idx )
+	  
+  /**
+   * Returns the SynapseRef object for entry idx
+   */
+  SynapseRef operator[]( size_t idx )
   {
-    const int pool_idx = idx * sizeof_pool_entry();
-    return NESTSynapseRef( source_neurons[ idx ],
+    const size_t pool_idx = idx * sizeof_pool_entry();
+    return SynapseRef( source_neurons[ idx ],
       node_id_[ idx ],
       num_params_,
       &property_pool_[ pool_idx ] );
-  };
-  void
-  resize( const int& n )
+  }
+  void resize( const size_t& n )
   {
     source_neurons.resize( n );
     node_id_.resize( n );
     property_pool_.resize( n * sizeof_pool_entry() );
   }
-  void
-  clear()
+  inline void clear()
   {
     source_neurons.clear();
     node_id_.clear();
     property_pool_.clear();
   }
-  size_t
-  size() const
+  inline size_t size() const
   {
     return source_neurons.size();
   }
 
   inline size_t sizeof_pool_entry()
   {
-      return num_params_ * sizeof( float ) + sizeof(int);
+      return num_params_ * sizeof( float ) + sizeof( uint32_t );
   }
 
-  size_t sizeof_entry()
+  inline size_t sizeof_entry()
   {
-      return 2* sizeof(int) + sizeof_pool_entry();
+      return 2*sizeof( uint32_t ) + sizeof_pool_entry();
   }
+};
+
 };
 
 #endif

@@ -1,7 +1,7 @@
 #include <vector>
 #include <deque>
 //#include "nmpi.h"
-#include "NESTNodeSynapse.h"
+
 #include <map>
 
 #include <omp.h>
@@ -9,8 +9,10 @@
 //#include "H5SynMEMPedictor.h"
 #include "dictdatum.h"
 #include "nest_datums.h"
-#include "H5SynapseLoader.h"
 #include "kernels.h"
+
+#include "SynapseList.h"
+#include "h5reader.h"
 
 #ifndef H5Synapses_CLASS
 #define H5Synapses_CLASS
@@ -23,34 +25,34 @@ enum CommunicateSynapses_Status {NOCOM,SEND, RECV, SENDRECV, UNSET};
  */
 
 using namespace nest;
+using namespace h5import;
 
 class H5Synapses
 {
 private:
     omp_lock_t tokenLock_;
 
+    std::string filename_;
     std::vector< std::string > model_params_;
-    long stride_;
+    std::vector< std::string > h5comp_params_;
     kernel_combi< double > kernel_;
     GIDCollectionDatum mapping_;
-    NESTSynapseList synapses_;
+
+    long stride_;
 
     size_t synmodel_id_;
 
-    std::string filename_;
+    uint64_t sizelimit_;
+	uint64_t transfersize_;
 
-    long num_syanpses_per_process_;
-    long last_total_synapse_;
+    void singleConnect( SynapseRef synapse, nest::index synmodel_id, nest::Node* const target_node, const nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses );
 
-    void singleConnect(const int& thrd, NESTSynapseRef synapse, nest::index synmodel_id, nest::Node* const target_node, const nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses );
+    void threadConnectNeurons( SynapseList& synapses, uint64_t& n_conSynapses );
 
-    uint64_t threadConnectNeurons( NESTSynapseList& synapses, uint64_t& n_conSynapses );
+    CommunicateSynapses_Status CommunicateSynapses( SynapseList& synapses );
 
-    void freeSynapses( NESTSynapseList& synapses );
-    CommunicateSynapses_Status CommunicateSynapses( NESTSynapseList& synapses );
-
-    void sort( NESTSynapseList& synapses );
-    void integrateMapping( NESTSynapseList& synapses );
+    void sort( SynapseList& synapses );
+    void integrateMapping( SynapseList& synapses );
 
 
     void addKernel( std::string name, TokenArray params );

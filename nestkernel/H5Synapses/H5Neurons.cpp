@@ -10,23 +10,24 @@
 #include "H5CellLoader.h"
 
 
-
 H5Neurons::H5Neurons(const DictionaryDatum& din)
-//: kernel(nest::kernel().vp_manager.get_num_threads())
 {
-    filename = getValue< std::string >(din, "file");
+    filename_ = getValue< std::string >(din, "file");
     TokenArray param_names = getValue<TokenArray>(din, "params");
-    for (int i=0; i<param_names.size(); i++) {
-        model_param_names.push_back(param_names[i]);
-    }
-    TokenArray h5params = param_names;
-    
+    for (int i=0; i<param_names.size(); i++)
+        model_param_names_.push_back(param_names[i]);
+
     //if params from file set use different parameters
-    updateValue<TokenArray>(din, "params_read_from_file", h5params);
-    for (int i=0; i<h5params.size(); i++) {
-        neurons_.parameter_names.push_back(h5params[i]);
+    TokenArray toh5params;
+    if ( updateValue<TokenArray>( din, "params_read_from_file", toh5params ) ) {
+    	std::vector< std::string > h5params;
+    	for ( int i=0; i<toh5params.size(); i++ )
+			 h5params.push_back( toh5params[ i ] );
+    	neurons_.setParameters( h5params );
     }
-    
+    else
+    	neurons_.setParameters( model_param_names_ );
+
     const Name model_name = getValue<Name>(din, "model");
     const Token neuron_model = nest::kernel().model_manager.get_modeldict()->lookup(model_name);
     neurons_.model_id_ = static_cast< nest::index >(neuron_model);
@@ -37,6 +38,9 @@ H5Neurons::H5Neurons(const DictionaryDatum& din)
         if (neurons_.with_subnet)
             neurons_.subnet_name = subnet_name;
     }
+    else
+    	neurons_.with_subnet = false;
+
     //add kernels
     ArrayDatum kernels;
     if (updateValue<ArrayDatum>(din, "kernels", kernels)) {
@@ -51,18 +55,10 @@ H5Neurons::H5Neurons(const DictionaryDatum& din)
 
 void H5Neurons::addKernel(const std::string& name, TokenArray params)
 {
-	if (name == "add") {
-		std::vector<float> v(params.size());
-		for (int i=0; i<params.size(); i++)
-			v[i] = params[i];
-		kernel.push_back< kernel_add<float> >(v);
-	}
-	if (name == "multi") {
-		std::vector<float> v(params.size());
-		for (int i=0; i<params.size(); i++)
-			v[i] = params[i];
-		kernel.push_back< kernel_multi<float> >(v);
-	}
+	if (name == "add")
+		kernel_.push_back< kernel_add<float> >(params);
+	if (name == "multi")
+		kernel_.push_back< kernel_multi<float> >(params);
 }
 
 void H5Neurons::import(DictionaryDatum& dout)
@@ -70,7 +66,7 @@ void H5Neurons::import(DictionaryDatum& dout)
     int rank = nest::kernel().mpi_manager.get_rank();
     int size = nest::kernel().mpi_manager.get_num_processes();
 
-    H5CellLoader cellLoader(filename);
+    H5CellLoader cellLoader(filename_);
 
     const  uint64_t non= cellLoader.getNumberOfCells(neurons_.parameter_names[0]);
     neurons_.resize(non);
@@ -129,21 +125,21 @@ GIDCollectionDatum H5Neurons::CreateNeurons()
     //set parameters of created neurons
     //ids of neurons are continously even though they might be in different subnets
     for (int i=0;i<non;i++) {
-    	int gid = added_neurons[i];
+    	const int gid = added_neurons[i];
         if (nest::kernel().node_manager.is_local_gid(gid)) {
-        nest::Node* node = nest::kernel().node_manager.get_node(gid);
-        if (node->is_local()) {
-            DictionaryDatum d( new Dictionary );
-            NESTNodeNeuron Nnn = neurons_[i];
-            std::vector<float>* values = kernel( Nnn.parameter_values_.begin(), Nnn.parameter_values_.end() );
-            
-            //copy values into sli data objects
-            for (int j=0; j<model_param_names.size(); j++) {
-               def< double >( d, model_param_names[j], (*values)[j] );
-            }
-            //pass sli objects to neuron
-            node->set_status(d);
-        }
+			nest::Node* node = nest::kernel().node_manager.get_node(gid);
+			if (node->is_local()) {
+				DictionaryDatum d( new Dictionary );
+				NeuronObj Nnn = neurons_[i];
+				std::vector<float>* values = kernel_( Nnn.params_.begin(), Nnn.params_.end() );
+
+				//copy values into sli data objects
+				for (int j=0; j<model_param_names_.size(); j++) {
+				   def< double >( d, model_param_names_[j], (*values)[j] );
+				}
+				//pass sli objects to neuron
+				node->set_status(d);
+			}
         }
     }
     return added_neurons;

@@ -21,13 +21,12 @@
 set( h5import_sources
    H5Synapses.h H5Synapses.cpp
    H5Neurons.h H5Neurons.cpp
-   NESTNodeSynapse.h NESTNodeSynapse.cpp
-   NESTNodeNeuron.h NESTNodeNeuron.cpp  
+   h5reader.h h5reader.cpp  
    )
     
     
 add_library( h5import ${h5import_sources} )
-target_link_libraries( h5import nestutil sli_lib nestkernel ${MPI_CXX_LIBRARIES} ${HDF5_LIBRARIES}/libhdf5.a )
+target_link_libraries( h5import nestutil sli_lib nestkernel ${MPI_CXX_LIBRARIES} ${HDF5_LIBRARIES} )
 
 target_include_directories( h5import PRIVATE
     ${PROJECT_SOURCE_DIR}/librandom
