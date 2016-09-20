@@ -1,10 +1,9 @@
+#include <omp.h>
+#include <mpi.h>
+
 #include <vector>
 #include <deque>
-//#include "nmpi.h"
-
 #include <map>
-
-#include <omp.h>
 
 //#include "H5SynMEMPedictor.h"
 #include "dictdatum.h"
@@ -45,7 +44,7 @@ private:
     uint64_t sizelimit_;
 	uint64_t transfersize_;
 
-    void singleConnect( SynapseRef synapse, nest::index synmodel_id, nest::Node* const target_node, const nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses );
+    void singleConnect( const SynapseRef& synapse, nest::index synmodel_id, nest::Node* target_node, nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses );
 
     void threadConnectNeurons( SynapseList& synapses, uint64_t& n_conSynapses );
 

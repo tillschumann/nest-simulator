@@ -23,13 +23,10 @@ struct private_vector
     std::vector< std::vector< type_name > > all_vectors;
 
     private_vector() : all_vectors( nest::kernel().vp_manager.get_num_threads() )
-    {
-    	std::cout << "all_vectors size=" << all_vectors.size() << std::endl;
-    }
+    {}
 
     std::vector< T >* operator()()
     {
-    	std::cout << "get_thread_id=" << nest::kernel().vp_manager.get_thread_id() << std::endl;
         return &(all_vectors[ nest::kernel().vp_manager.get_thread_id() ]);
     }
 };

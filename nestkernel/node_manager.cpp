@@ -511,7 +511,7 @@ Node* NodeManager::get_node( index n, thread thr ) // no_p
     return node; // plain node
 
   if ( thr < 0 || thr >= static_cast< thread >( node->num_thread_siblings_() ) )
-    throw UnknownNode();
+    throw UnknownNode( );
 
   return node->get_thread_sibling_( thr );
 }

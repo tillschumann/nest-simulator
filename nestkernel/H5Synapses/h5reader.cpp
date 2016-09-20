@@ -1,7 +1,8 @@
+#include <mpi.h>
+
 #include "h5reader.h"
 
 #include <hdf5.h>
-#include <mpi.h>
 #include <algorithm>
 #include <numeric>
 #include <vector>

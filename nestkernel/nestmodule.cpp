@@ -19,6 +19,7 @@
  *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+#include <mpi.h>
 
 #include "nestmodule.h"
 
@@ -801,8 +802,6 @@ void NestModule::H5ConnectionTll_DFunction::execute(SLIInterpreter *i) const
   omp_set_num_threads(n_threads);
   H5Synapses h5Synapses(din);
 
-  //h5Synapses.set_status(net_params);
-
   DictionaryDatum dout( new Dictionary );
   h5Synapses.import(dout);
   
@@ -869,9 +868,7 @@ void NestModule::H5NeuronCsX_DFunction::execute(SLIInterpreter *i) const
     i->assert_stack_load(1);
   
     DictionaryDatum din = getValue< DictionaryDatum >( i->OStack.pick( 0 ) );
-    
     H5Neurons h5neurons( din );
-    
     DictionaryDatum dout( new Dictionary );
 
     h5neurons.import( dout );

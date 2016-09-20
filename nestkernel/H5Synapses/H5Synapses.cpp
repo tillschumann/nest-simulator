@@ -1,6 +1,16 @@
 #include "H5Synapses.h"
 #include "SynapseList.h"
 
+#include "kernel_manager.h"
+#include "node.h"
+#include "nestmodule.h"
+#include "exceptions.h"
+#include "compose.hpp"
+#include "nest_names.h"
+#include "nest_types.h"
+#include "dictdatum.h"
+#include "vp_manager_impl.h"
+
 #include <iostream>
 #include <algorithm> 
 #include <sstream>
@@ -13,16 +23,6 @@
 #include <queue>
 #include <algorithm>
 
-#include "kernel_manager.h"
-#include "node.h"
-#include "nestmodule.h"
-#include "exceptions.h"
-#include "compose.hpp"
-#include "nest_names.h"
-#include "nest_types.h"
-#include "dictdatum.h"
-#include "vp_manager_impl.h"
-
 #ifdef IS_BLUEGENE_Q
 #include <spi/include/kernel/memory.h>
 #endif
@@ -31,24 +31,21 @@
 
 using namespace h5import;
 
-void H5Synapses::singleConnect( SynapseRef synapse, nest::index synmodel_id, nest::Node* const target_node, const nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses/*, nestio::Stopwatch::timestamp_t& connect_dur*/)
+void H5Synapses::singleConnect( const SynapseRef& synapse, nest::index synmodel_id, nest::Node* target_node, nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses/*, nestio::Stopwatch::timestamp_t& connect_dur*/)
 {
   nest::index source = synapse.source_neuron_;
   
   // safety check whether the target is on this process
   if (nest::kernel().node_manager.is_local_node(target_node)) {
-    std::vector<double>* values = kernel_( synapse.params_.begin(), synapse.params_.end() );
-    //values = kernel(values);
+    std::vector<double>& values = *(kernel_( synapse.params_.begin(), synapse.params_.end() ));
 
-    //assert( values->size()>=2 );
-
-    const double& delay = (*values)[0];
-    const double& weight = (*values)[1];
-    for (int i=2; i<values->size(); i++)
-      setValue<double>( *v_ptr[i], (*values)[i] );
+    const double& delay = (values)[0];
+    const double& weight = (values)[1];
+    for (int i=2; i<values.size(); i++)
+      setValue<double>( *v_ptr[i], (values)[i] );
 
     nest::kernel().connection_manager.connect(source, target_node, target_thread, synmodel_id, d, delay, weight);
-    
+
     n_conSynapses++;
   }
   else
@@ -86,26 +83,33 @@ void H5Synapses::threadConnectNeurons(SynapseList& synapses, uint64_t& n_conSyna
 			//only connect neurons for stride 0
 			int stride_c=0;
 			for (int i=0;i<synapses.size();i++) {
-				const nest::index target = synapses[i].target_neuron_;
-				try
-				{
+				const SynapseRef syn = synapses[i];
+
+				const nest::index target = syn.target_neuron_;
+				//try
+				//{
 					nest::Node* const target_node = nest::kernel().node_manager.get_node(target);
 					const nest::thread target_thread = target_node->get_thread();
 
 					//only connect neurons which are on local thread otherwise skip
 					if (target_thread == tid)
 					{
-						stride_c++;
-						if (stride_c==1)
-						singleConnect( synapses[i], synmodel_id_, target_node, target_thread, d, v_ptr, n_conSynapses_tmp );
-						if (stride_c>=stride_)
-						stride_c = 0;
+						//stride_c++;
+						//if (stride_c==1)
+						singleConnect( syn, synmodel_id_, target_node, target_thread, d, v_ptr, n_conSynapses_tmp );
+						//if (stride_c>=stride_)
+						//stride_c = 0;
 					}
+				//}
+				/*catch ( nest::KernelException& e ) {
+					std::cout << "KernelException rank=" << rank << " source=" << syn.source_neuron_ <<" target=" << target << " message: " << e.message() << std::endl;
 				}
-				catch ( nest::KernelException e) {
-					std::cout << "rank=" << rank << " target=" << target << std::endl; 
-					LOG( nest::M_ERROR, "H5Synapses::threadConnectNeurons", String::compose( "KernelException\trank=%1\t%2", rank, e.message()) );
+				catch ( std::exception& ex ) {
+					std::cout << "exception rank=" << rank << " source=" << syn.source_neuron_ <<" target=" << target << " what: " << ex.what() << '\n';
 				}
+				catch ( ... ) {
+					std::cout << "ERROR" << std::endl;
+				}*/
 			}
 			omp_set_lock(&tokenLock_);
 		}  // lock closing braket to serialize object destroying
@@ -149,6 +153,7 @@ H5Synapses::CommunicateSynapses( SynapseList& synapses )
 		entriesadded = synapses[ i ].serialize( send_buffer, offset );
 
 		// save number of values added
+		#pragma omp atomic
 		sendcounts[ synapses[ i ].node_id_ ] += entriesadded;
 	}
 
@@ -313,7 +318,7 @@ void H5Synapses::import(DictionaryDatum& dout)
     			 t_load += (1000 * (end_load.tv_sec - start_load.tv_sec))
                 		+ ((end_load.tv_usec - start_load.tv_usec) / 1000);
 
-    			 //spawen task
+    			 //spawn task
          	 	 #pragma omp task firstprivate(newone, dataspace_view)
     			 {
     				 synloader.integrateSourceNeurons( *newone, dataspace_view );

@@ -40,11 +40,11 @@ public:
     }
     T& operator[](const size_t& idx)
     {
-    return buf[idx+readalready];
+    return buf.at(idx+readalready);
     }
     const T& operator[](const size_t& idx) const
     {
-    return buf[idx+readalready];
+    return buf.at(idx+readalready);
     }
     T& pop_front()
     {
@@ -106,7 +106,7 @@ struct SynapseRef
     : source_neuron_( source_neuron )
     , target_neuron_( *( reinterpret_cast< uint32_t* >( pool_entry ) ) )
     , node_id_( node_id )
-    , params_( reinterpret_cast< float* >( pool_entry ) + 1, num_params )
+    , params_( reinterpret_cast< float* >( pool_entry + sizeof( uint32_t ) ), num_params )
   {}
 
   /**
@@ -142,6 +142,8 @@ struct SynapseRef
 
   SynapseRef& operator=( const SynapseRef& r )
   {
+	if (this == &r)
+		return *this;
     source_neuron_ = r.source_neuron_;
     target_neuron_ = r.target_neuron_;
     node_id_ = r.node_id_;
@@ -178,10 +180,11 @@ public:
   SynapseRef operator[]( size_t idx )
   {
     const size_t pool_idx = idx * sizeof_pool_entry();
-    return SynapseRef( source_neurons[ idx ],
+
+    return SynapseRef( source_neurons[idx],
       node_id_[ idx ],
       num_params_,
-      &property_pool_[ pool_idx ] );
+      &property_pool_[pool_idx] );
   }
   void resize( const size_t& n )
   {
