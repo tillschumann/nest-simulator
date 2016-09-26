@@ -36,22 +36,28 @@ void H5Synapses::singleConnect( const SynapseRef& synapse, nest::index synmodel_
   nest::index source = synapse.source_neuron_;
   
   // safety check whether the target is on this process
-  if (nest::kernel().node_manager.is_local_node(target_node)) {
-    std::vector<double>& values = *(kernel_( synapse.params_.begin(), synapse.params_.end() ));
+  //if (nest::kernel().node_manager.is_local_node(target_node)) {
+    //std::vector<double>& values = *(kernel_( synapse.params_.begin(), synapse.params_.end() ));
 
-    const double& delay = (values)[0];
-    const double& weight = (values)[1];
-    for (int i=2; i<values.size(); i++)
-      setValue<double>( *v_ptr[i], (values)[i] );
+    //const double& delay = (values)[0];
+    //const double& weight = (values)[1];
+    //for (int i=2; i<values.size(); i++)
+    //  setValue<double>( *v_ptr[i], (values)[i] );
+
+    const double delay = *(synapse.params_.begin());
+    const double weight = *(synapse.params_.begin()+1);
+
+    for (int i=2; i<model_params_.size(); i++)
+       setValue<double>( *v_ptr[i], *(synapse.params_.begin()+i) );
 
     nest::kernel().connection_manager.connect(source, target_node, target_thread, synmodel_id, d, delay, weight);
 
     n_conSynapses++;
-  }
-  else
-  {
-    throw nest::IllegalConnection("H5Synapses::singleConnect(): synapse is on wrong node");
-  }
+  //}
+  //else
+  //{
+  //  throw nest::IllegalConnection("H5Synapses::singleConnect(): synapse is on wrong node");
+  //}
 }
 
 void H5Synapses::threadConnectNeurons(SynapseList& synapses, uint64_t& n_conSynapses)
@@ -288,8 +294,8 @@ void H5Synapses::import(DictionaryDatum& dout)
 	// oberserver variables for validation
 	// sum over all after alg has to be equal
 	uint64_t n_readSynapses=0, n_memSynapses=0, n_conSynapses=0, n_SynapsesInDatasets=0;
-	struct timeval start_mpicon, end_mpicon, start_load, end_load, start_push, end_push;
-	long long t_load=0, t_mpicon=0, t_push=0;
+	struct timeval start_mpicon, end_mpicon, start_load, end_load, start_push, end_push, start_con, end_con;
+	long long t_load=0, t_mpicon=0, t_push=0, t_con=0;
   
 	CommunicateSynapses_Status com_status=UNSET;
   
@@ -343,10 +349,15 @@ void H5Synapses::import(DictionaryDatum& dout)
 		// update stats after communication
 		n_memSynapses += synapses->size();
 
+		gettimeofday(&start_con, NULL);
 		threadConnectNeurons( *synapses, n_conSynapses );
+		gettimeofday(&end_con, NULL);
 
 		delete synapses;
 		gettimeofday(&end_mpicon, NULL);
+
+		t_con += (1000 * (end_con.tv_sec - start_con.tv_sec))
+                   + ((end_con.tv_usec - start_con.tv_usec) / 1000);
 
 		t_mpicon += (1000 * (end_mpicon.tv_sec - start_mpicon.tv_sec))
 		   + ((end_mpicon.tv_usec - start_mpicon.tv_usec) / 1000);
@@ -362,6 +373,7 @@ void H5Synapses::import(DictionaryDatum& dout)
    			  << "\tt_load=" << t_load  << "ms"
    			  << "\tt_mpicon=" << t_mpicon << "ms"
    			  << "\tt_push=" << t_push << "ms"
+			  << "\tt_con=" << t_con << "ms"
            	  << std::endl;
   
 
