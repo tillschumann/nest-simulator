@@ -10,8 +10,8 @@
 #include "nest_datums.h"
 #include "kernels.h"
 
-#include "SynapseList.h"
-#include "h5reader.h"
+#include "H5Synapses/SynapseList.h"
+#include "H5Synapses/h5reader.h"
 
 #ifndef H5Synapses_CLASS
 #define H5Synapses_CLASS

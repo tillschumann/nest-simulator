@@ -1,6 +1,6 @@
 #include <mpi.h>
 
-#include "h5reader.h"
+#include "H5Synapses/h5reader.h"
 
 #include <hdf5.h>
 #include <algorithm>

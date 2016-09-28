@@ -34,7 +34,7 @@ target_include_directories( h5import PRIVATE
     ${PROJECT_BINARY_DIR}/libnestutil
     ${PROJECT_SOURCE_DIR}/sli
     ${PROJECT_SOURCE_DIR}/nestkernel
-    ${HDF5_INCLUDE_DIRS}
+    ${HDF5_C_INCLUDE_DIR}
     )
 
 install( TARGETS h5import

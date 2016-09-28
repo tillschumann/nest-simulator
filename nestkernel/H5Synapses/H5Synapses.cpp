@@ -1,5 +1,5 @@
-#include "H5Synapses.h"
-#include "SynapseList.h"
+#include "H5Synapses/H5Synapses.h"
+#include "H5Synapses/SynapseList.h"
 
 #include "kernel_manager.h"
 #include "node.h"
