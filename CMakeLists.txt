@@ -264,6 +264,9 @@ if ( with-defines )
   endforeach ()
 endif ()
 
+message( WARNING "GSL_LIBRARIES:" ${GSL_LIBRARIES} )
+message( WARNING "HDF5_LIBRARIES:" ${HDF5_LIBRARIES} )
+
 # all libraries
 set( ALL_LIBS
   "-lnestutil"

@@ -91,8 +91,8 @@ set( nestkernel_sources
 
 add_library( nestkernel ${nestkernel_sources} )
 target_link_libraries( nestkernel
-    nestutil random sli_lib h5import
-    ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES}
+    nestutil random sli_lib
+    ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES} ${HDF5_LIBRARIES}
     )
 
 target_include_directories( nestkernel PRIVATE
@@ -101,7 +101,7 @@ target_include_directories( nestkernel PRIVATE
     ${PROJECT_SOURCE_DIR}/librandom
     ${PROJECT_SOURCE_DIR}/sli
     ${PROJECT_SOURCE_DIR}/nestkernel
-    ${HDF5_C_INCLUDE_DIR} 
+    ${HDF5_INCLUDE_DIRS} 
     )
     
 #add_subdirectory( H5Synapses )
