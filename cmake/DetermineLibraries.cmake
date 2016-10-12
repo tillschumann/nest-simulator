@@ -80,6 +80,7 @@ if ( with-hdf5 )
     # find_path( HDF5_INCLUDE_DIRS NAMES hdf5.h HINTS ${with-hdf5}/include )
     # find_library( HDF5_LIBRARIES NAMES hdf5 HINTS ${with-hdf5}/lib ) 
     find_package( HDF5 )
+    set( HAVE_HDF5 ON )
   #endif ()
 endif ()
 

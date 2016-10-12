@@ -58,8 +58,8 @@
 #include "tokenutils.h"
 
 // Include from H5Synapses:
-#include "H5Synapses.h"
-#include "H5Neurons.h"
+#include "h5import/H5Synapses.h"
+#include "h5import/H5Neurons.h"
 
 #ifdef HPCTOOLKIT
 #include <hpctoolkit.h>
