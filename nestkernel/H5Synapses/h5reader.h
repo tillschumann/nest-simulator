@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-#include "SynapseList.h"
+#include "H5Synapses/SynapseList.h"
 
 #ifndef H5IMPORT_H5READER_CLASS
 #define H5IMPORT_H5READER_CLASS

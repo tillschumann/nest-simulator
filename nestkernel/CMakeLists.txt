@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with NEST.  If not, see <http://www.gnu.org/licenses/>.
 
-add_subdirectory( H5Synapses )
+# add_subdirectory( H5Synapses )
 
 set( nestkernel_sources
     universal_data_logger_impl.h universal_data_logger.h
@@ -84,12 +84,15 @@ set( nestkernel_sources
     node_manager.h node_manager.cpp
     logging_manager.h logging_manager.cpp
     manager_interface.h  
+    H5Synapses/H5Synapses.h H5Synapses/H5Synapses.cpp
+    H5Synapses/H5Neurons.h H5Synapses/H5Neurons.cpp
+    H5Synapses/h5reader.h H5Synapses/h5reader.cpp
     )
 
 add_library( nestkernel ${nestkernel_sources} )
 target_link_libraries( nestkernel
-    nestutil random sli_lib h5import
-    ${LTDL_LIBRARIES} ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES} ${HDF5_LIBRARIES}
+    nestutil random sli_lib
+    ${MPI_CXX_LIBRARIES} ${MUSIC_LIBRARIES} ${HDF5_LIBRARIES}
     )
 
 target_include_directories( nestkernel PRIVATE
@@ -97,7 +100,6 @@ target_include_directories( nestkernel PRIVATE
     ${PROJECT_BINARY_DIR}/libnestutil
     ${PROJECT_SOURCE_DIR}/librandom
     ${PROJECT_SOURCE_DIR}/sli
-    ${PROJECT_SOURCE_DIR}/nestkernel/H5Synapses
     ${PROJECT_SOURCE_DIR}/nestkernel
     ${HDF5_INCLUDE_DIRS} 
     )

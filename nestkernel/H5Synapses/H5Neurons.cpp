@@ -1,13 +1,13 @@
 #include <string>
 
-#include "H5Neurons.h"
+#include "H5Synapses/H5Neurons.h"
 
 #include "node.h"
 #include "nestmodule.h"
 #include "nest_names.h"
 #include "kernel_manager.h"
 
-#include "H5CellLoader.h"
+#include "H5Synapses/H5CellLoader.h"
 
 
 H5Neurons::H5Neurons(const DictionaryDatum& din)

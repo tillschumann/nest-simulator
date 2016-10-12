@@ -151,6 +151,7 @@ nest_process_with_openmp()
 nest_process_with_mpi()
 nest_process_with_libneurosim()
 nest_process_with_music()
+nest_process_with_hdf5()
 
 nest_get_color_flags()
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NEST_C_COLOR_FLAGS}" )
@@ -262,6 +263,9 @@ if ( with-defines )
     set( ALL_CXXFLAGS "${def} ${ALL_CXXFLAGS}" )
   endforeach ()
 endif ()
+
+message( WARNING "GSL_LIBRARIES:" ${GSL_LIBRARIES} )
+message( WARNING "HDF5_LIBRARIES:" ${HDF5_LIBRARIES} )
 
 # all libraries
 set( ALL_LIBS
