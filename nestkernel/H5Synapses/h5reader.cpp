@@ -14,8 +14,7 @@ using namespace h5import;
                       const std::vector< std::string >& datasets,
                       const uint64_t& transfersize,
                       const uint64_t& limittotalsize)
-        : file_id_      ( H5I_INVALID_HID ),
-          gid_          ( H5I_INVALID_HID ),
+        : h5file		( path ),
           memtype_      ( H5I_INVALID_HID ),
           dataset_ptr_  ( NULL ),
           global_offset_( 0 ),
@@ -26,12 +25,6 @@ using namespace h5import;
     MPI_Comm_size( MPI_COMM_WORLD, &num_processes_ );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank_ );
 
-
-    hid_t fapl_id = H5Pcreate( H5P_FILE_ACCESS );
-    file_id_ = H5Fopen( path.c_str(), H5F_ACC_RDONLY, fapl_id );
-    H5Pclose( fapl_id );
-
-    gid_ = H5Gopen( file_id_, "/", H5P_DEFAULT );
     dataset_ptr_ = new h5dataset( this, "syn" );
 
     // read size and adapt if set
@@ -53,8 +46,6 @@ using namespace h5import;
     {
         H5Tclose( memtype_ );
         delete dataset_ptr_;
-        H5Gclose( gid_ );
-        H5Fclose( file_id_ );
     }
 
       /*
@@ -102,7 +93,7 @@ using namespace h5import;
        removeNotNeededNeuronLinks();
 
        //sort to find entires afterwards faster
-       std::stable_sort( neuronLinks_.begin(), neuronLinks_.end(), h5view::MinSynPtr );
+       std::stable_sort( neuronLinks_.begin(), neuronLinks_.end(), NeuronLink::MinSynPtr );
      }
 
      void h5reader::removeNotNeededNeuronLinks()
