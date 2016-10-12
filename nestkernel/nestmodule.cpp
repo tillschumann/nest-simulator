@@ -761,29 +761,37 @@ NestModule::Disconnect_g_g_D_DFunction::execute( SLIInterpreter* i ) const
 
 
 /* BeginDocumentation
-   Name: HDF5MikeLoad_s_s - Import tll synapses hdf5 file
+   Name: H5ConnectionTll_D - Import tll synapses hdf5 file
 
    Synopsis:
-   subnet_column param_columns model file  H5NeuronCsX_s_a_s -> -
+   dict_in  H5ConnectionTll_D -> dict_out
 
-   neuron_offset    - specify the offset of the neuron ids (NEST circuit & hdf5 file)
-   param_names    - names of compound datatype columns in syn dataset inside hdf5 file which specify the synpase parameters
-   model          - synapse model
-   file             - path to hdf5 file
+   dict_in is a parameter dictionary, which is passed to the import module
+   dict_in has to contain:
+   /file filename of the synapse hd5 file (string)
+   /params synapse parameter names (list of strings)
+   /model synpase model name (string)
+ 
+   optional:
+   /synapse_per_rank transferSize (number)
+   /last_synpase number of imported synapses (number)
+   /stride import only eachs i-th synapse (number)
+   /hdf5_names hdf5 parameter names, has to be same length as params names (list of strings)
+   /mapping mapping user for neuron ids (gidcollection)
+   /kernels use kernel functions to manipulate synapse parameters during loading (list of dicts[ contain /name and /params] )
+
+   dict_out:
+   /readSynapses number of read synapses by rank (number)
+   /conSynapses number of connected synapses by rank (number)
+   /memSynapses number of processed synapses by rank (number)
+   /SynpasesInDatasets number of synapses in hdf5 file (number)
 
    Description:
-   Use the CsX neuron hdf5 file import functionallity
-
-   The datasets in the hdf5 file have to be of same length.
-   Each entry in the dataset specifies one neuron.
-   The name of the datasets have to be the same as the parameter names of the neuron parameters.
-   (Names depense on the selected neuron model)
-   
-   Neurons are grouped together to subnets based on their value in the subnet_dataset dataset.
+   Use the Tll hdf5 synapse file import
 
    Author: Till Schumann
    FirstVersion: Oktober 2015
-   SeeAlso: Connect, H5ConnectionTll_d
+   SeeAlso: Connect, H5NeuronCsX_D
 */
 void NestModule::H5ConnectionTll_DFunction::execute(SLIInterpreter *i) const
 {
@@ -839,29 +847,39 @@ void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
 }
 
 /* BeginDocumentation
-   Name: H5NeuronCsX_s_a_s - Import CsX neuron hdf5 file
+   Name: H5NeuronCsX_D - Import CsX hdf5 neuron file
 
    Synopsis:
-   subnet_column param_columns model file  H5NeuronCsX_s_a_s -> -
+   dict_in  H5NeuronCsX_D -> dict_out
 
-   subnet_dataset    - dataset in hdf5 file which specifies the subnet
-   param_datasets    - datasets in hdf5 file which specify the neuron parameters
-   model            - neuron model
-   file             - path to hdf5 file
+   dict_in is a parameter dictionary, which is passed to the import module
+   dict_in has to contain:
+   /file filename of the neuron hd5 file (string)
+   /params neuron parameter names (list of strings)
+   /model neuron model name (string)
+ 
+   optional:
+   /params_read_from_file hdf5 parameter names, has to be same length as params names (list of strings)
+   /subnet group neurons by specified dataset (string)
+   /kernels use kernel functions to manipulate neuron parameters during loading (list of dicts[ contain /name and /params] )
 
+   dict_out:
+   /added_gids list of created neurons (gidcollection)
+   /subnet group of neurons specified by subnet functionallity (gidcollection)
+ 
    Description:
-   Use the CsX neuron hdf5 file import functionallity
+   Use the CsX hdf5 neuron file import
 
    The datasets in the hdf5 file have to be of same length.
    Each entry in the dataset specifies one neuron.
    The name of the datasets have to be the same as the parameter names of the neuron parameters.
    (Names depense on the selected neuron model)
    
-   Neurons are grouped together to subnets based on their value in the subnet_dataset dataset.
+   Neurons are grouped together to gidcollections based on their value in the subnet_dataset dataset.
 
    Author: Till Schumann
    FirstVersion: Oktober 2015
-   SeeAlso: Connect, HDF5MikeLoad_s_s
+   SeeAlso: Create, H5NeuronTll_D
 */
 void NestModule::H5NeuronCsX_DFunction::execute(SLIInterpreter *i) const
 {
