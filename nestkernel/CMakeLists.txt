@@ -84,8 +84,8 @@ set( nestkernel_sources
     node_manager.h node_manager.cpp
     logging_manager.h logging_manager.cpp
     manager_interface.h  
-    h5import/H5Synapses.h h5import/H5Synapses.cpp
-    h5import/H5Neurons.h h5import/H5Neurons.cpp
+    h5import/synapse_loader.h h5import/synapse_loader.cpp
+    h5import/neuron_loader.h h5import/neuron_loader.cpp
     h5import/h5synapsefile.h h5import/h5synapsefile.cpp
     )
 

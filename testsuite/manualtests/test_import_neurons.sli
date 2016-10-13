@@ -1,0 +1,56 @@
+
+(unittest) run
+/unittest using
+
+ResetKernel
+
+/lnt 8 def
+0 << /local_num_threads lnt >> SetStatus
+
+
+/subnet_name (subnet_wl) def
+/neuronmodel_name /aeif_cond_exp def
+/h5param_names [(C_m) (Delta_T) (E_L) (E_EX)] def
+/neuronparam_names [(C_m) (Delta_T) (E_L) (E_ex)] def
+/cell_pos_file (import_neurons.h5) def
+<< /params_read_from_file h5param_names /file cell_pos_file /params neuronparam_names /model neuronmodel_name /subnet subnet_name >> H5NeuronCsX_D /dout Set
+
+dout /subnet get /stim_n Set
+dout /added_gids get /neurons Set
+
+/N 123 def
+
+{
+  stim_n size 1 sub 0 eq
+  neurons size N sub 0 eq and 
+} assert_or_die
+
+/C_m_offset 10 def
+/Delta_T_offset 20 def
+/E_L_offset 30 def
+/E_ex_offset 40 def
+/tid 0.0 def
+
+%%iterate over all local neurons
+0 GetLocalNodes {
+    dup /gid Set
+    /id gid 1 sub def
+    gid GetStatus /local get {
+       %%check relation of parameters to gid
+       {
+         id C_m_offset add 6 ToUnitTestPrecision gid GetStatus /C_m get 6 ToUnitTestPrecision eq
+         id Delta_T_offset add 6 ToUnitTestPrecision gid GetStatus /Delta_T get 6 ToUnitTestPrecision eq and
+         id E_L_offset add 6 ToUnitTestPrecision gid GetStatus /E_L get 6 ToUnitTestPrecision eq and
+         id E_ex_offset add 6 ToUnitTestPrecision gid GetStatus /E_ex get 6 ToUnitTestPrecision eq and
+         true
+       } assert_or_die
+
+       %%sum up gids
+       tid id add /tid Set
+    } if
+} forall
+
+%%test could be more specific
+{
+  tid 0 gt
+} assert_or_die  

@@ -1,0 +1,56 @@
+
+(unittest) run
+/unittest using
+
+ResetKernel
+
+/lnt 8 def
+0 << /local_num_threads lnt >> SetStatus
+
+/aeif_cond_exp 10000 Create
+
+/synmodel_name /tsodyks2_synapse def
+/hdf5param_names [(delay) (weight) (TauRec) (TauFac)] def
+/synparam_names [(delay) (weight) (tau_rec) (tau_fac)] def
+/connection_dir (import_synapses.h5) def
+<< /file connection_dir /hdf5_names hdf5param_names /params synparam_names /model synmodel_name >> /din Set
+din H5ConnectionTll_D /dout Set
+
+/delay_offset 1.0 def
+/weight_offset 10.0 def
+/tau_rec_offset 3.0 def
+/tau_fac_offset 5.0 def
+
+/tid 0.0 def
+
+%%iterate over all local neurons
+<< >> GetConnections /conns Set
+
+{
+  dout /conSynapses get dout /memSynapses get eq
+} assert_or_die
+{
+  dout /SynapsesInDatasets get 100 eq
+} assert_or_die
+
+conns {
+    dup GetStatus /conn Set
+    conn /source get /sgid Set
+    conn /target get /tgid Set
+    sgid tgid add 2 sub/id Set
+	%%check relation of parameters to gid
+	{
+	   id delay_offset add 6 ToUnitTestPrecision conn /delay get 6 ToUnitTestPrecision eq
+	   id weight_offset add 6 ToUnitTestPrecision conn /weight get 6 ToUnitTestPrecision eq and
+	   id tau_rec_offset add 6 ToUnitTestPrecision conn /tau_rec get 6 ToUnitTestPrecision eq and
+	   id tau_fac_offset add 6 ToUnitTestPrecision conn /tau_fac get 6 ToUnitTestPrecision eq and
+	} assert_or_die
+	
+	   %%sum up gids
+	   tid id add /tid Set
+} forall
+
+%%test could be more specific
+{
+  tid 0 gt
+} assert_or_die  

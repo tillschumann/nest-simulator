@@ -58,8 +58,8 @@
 #include "tokenutils.h"
 
 // Include from H5Synapses:
-#include "h5import/H5Synapses.h"
-#include "h5import/H5Neurons.h"
+#include "h5import/synapse_loader.h"
+#include "h5import/neuron_loader.h"
 
 #ifdef HPCTOOLKIT
 #include <hpctoolkit.h>
@@ -808,10 +808,10 @@ void NestModule::H5ConnectionTll_DFunction::execute(SLIInterpreter *i) const
   //nest::kernel().vp_manager.set_num_threads( n_threads );
   //nest::kernel().num_threads_changed_reset();
   omp_set_num_threads(n_threads);
-  H5Synapses h5Synapses(din);
+  SynapseLoader loader(din);
 
   DictionaryDatum dout( new Dictionary );
-  h5Synapses.import(dout);
+  loader.execute(dout);
   
   //omp_set_dynamic(false);
   //omp_set_num_threads(tmp_num_threads);*/
@@ -886,10 +886,10 @@ void NestModule::H5NeuronCsX_DFunction::execute(SLIInterpreter *i) const
     i->assert_stack_load(1);
   
     DictionaryDatum din = getValue< DictionaryDatum >( i->OStack.pick( 0 ) );
-    H5Neurons h5neurons( din );
+    NeuronLoader loader( din );
     DictionaryDatum dout( new Dictionary );
 
-    h5neurons.import( dout );
+    loader.execute( dout );
 
     i->OStack.pop(1);
   
