@@ -761,14 +761,14 @@ NestModule::Disconnect_g_g_D_DFunction::execute( SLIInterpreter* i ) const
 
 
 /* BeginDocumentation
-   Name: H5ConnectionTll_D - Import tll synapses hdf5 file
+   Name: H5RTConnect_D - Import synapses from PointBrainH5
 
    Synopsis:
-   dict_in  H5ConnectionTll_D -> dict_out
+   dict_in  H5RTConnect_D -> dict_out
 
    dict_in is a parameter dictionary, which is passed to the import module
    dict_in has to contain:
-   /file filename of the synapse hd5 file (string)
+   /file file path of the synapse file (string)
    /params synapse parameter names (list of strings)
    /model synpase model name (string)
  
@@ -787,13 +787,13 @@ NestModule::Disconnect_g_g_D_DFunction::execute( SLIInterpreter* i ) const
    /SynpasesInDatasets number of synapses in hdf5 file (number)
 
    Description:
-   Use the Tll hdf5 synapse file import
+   Import synpases from PointBrainH5
 
    Author: Till Schumann
    FirstVersion: Oktober 2015
-   SeeAlso: Connect, H5NeuronCsX_D
+   SeeAlso: Connect, H5RCreate_D
 */
-void NestModule::H5ConnectionTll_DFunction::execute(SLIInterpreter *i) const
+void NestModule::H5RTConnect_DFunction::execute(SLIInterpreter *i) const
 {
   #ifdef SCOREP_COMPILE
   SCOREP_USER_REGION( "syn_import_module", SCOREP_USER_REGION_TYPE_FUNCTION )
@@ -847,14 +847,14 @@ void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
 }
 
 /* BeginDocumentation
-   Name: H5NeuronCsX_D - Import CsX hdf5 neuron file
+   Name: H5RCreate_D - Import neurons PointBrainH5
 
    Synopsis:
-   dict_in  H5NeuronCsX_D -> dict_out
+   dict_in  H5RCreate_D -> dict_out
 
    dict_in is a parameter dictionary, which is passed to the import module
    dict_in has to contain:
-   /file filename of the neuron hd5 file (string)
+   /file file path the the neuron file (string)
    /params neuron parameter names (list of strings)
    /model neuron model name (string)
  
@@ -868,7 +868,7 @@ void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
    /subnet group of neurons specified by subnet functionallity (gidcollection)
  
    Description:
-   Use the CsX hdf5 neuron file import
+   Import neurons from PointBrainH5 
 
    The datasets in the hdf5 file have to be of same length.
    Each entry in the dataset specifies one neuron.
@@ -879,9 +879,9 @@ void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
 
    Author: Till Schumann
    FirstVersion: Oktober 2015
-   SeeAlso: Create, H5NeuronTll_D
+   SeeAlso: Create, H5RTConnect_D
 */
-void NestModule::H5NeuronCsX_DFunction::execute(SLIInterpreter *i) const
+void NestModule::H5RCreate_DFunction::execute(SLIInterpreter *i) const
 {
     i->assert_stack_load(1);
   
@@ -1818,8 +1818,8 @@ NestModule::init( SLIInterpreter* i )
   i->createcommand( "DataConnect_i_D_s", &dataconnect_i_D_sfunction );
   i->createcommand( "DataConnect_a", &dataconnect_afunction );
 
-  i->createcommand("H5ConnectionTll_D", &h5connectiontll_dfunction);
-  i->createcommand("H5NeuronCsX_D", &h5neuroncsx_dfunction);
+  i->createcommand("H5RTConnect_D", &h5rtconnect_dfunction);
+  i->createcommand("H5RCreate_D", &h5rcreate_dfunction);
 
   i->createcommand( "ResetNetwork", &resetnetworkfunction );
   i->createcommand( "ResetKernel", &resetkernelfunction );

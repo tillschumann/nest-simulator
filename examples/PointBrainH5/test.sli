@@ -1,0 +1,39 @@
+/lnt 16 def
+0 << /local_num_threads lnt >> SetStatus
+
+tic
+
+%%Load neurons
+/subnet_name (tag) def
+/subnet_key 1 def
+/neuronmodel_name /iaf_neuron def
+/neuronparam_names [(E_L) (I_e) (V_th) (V_reset) (C_m) (tau_m) (tau_syn) (t_ref)] def
+
+
+%% set file path
+/cell_pos_file (/gpfs/bbp.cscs.ch/scratch/gss/bgq/schumann/tmp/neurons.h5) def
+<< /file cell_pos_file /params neuronparam_names /model neuronmodel_name /subnet subnet_name /subnet_key subnet_key >> /din Set
+%din /hdf5_names [(E_L) (I_e) (V_th) (V_reset) (C_m) (tau_m) (tau_syn) (t_ref)] put_d
+
+din H5RCreate_D /dout Set
+dout /subnet get /stim_n Set
+dout /added_gids get /importedneurons Set
+
+
+%%Load synapses
+/synmodel_name /tsodyks2_synapse_hpc def 
+/synparam_names [(delay) (weight) (U) (tau_rec) (tau_fac)] def
+
+%% set file path
+/connection_dir (/gpfs/bbp.cscs.ch/scratch/gss/bgq/schumann/tmp/synapses.h5) def
+<< /file connection_dir  /params synparam_names /model synmodel_name >> /din Set
+din /mapping importedneurons put_d
+
+%/hdf5param_names [(delay) (weight) (U0) (TauRec) (TauFac)] def
+%din /hdf5_names hdf5param_names put_d
+
+din H5RTConnect_D /dout Set
+
+
+toc /build_time Set
+(rank=) Rank cvs join ( build_time=) join build_time cvs join =
