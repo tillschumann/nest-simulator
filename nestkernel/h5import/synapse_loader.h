@@ -1,5 +1,5 @@
-#include <omp.h>
-#include <mpi.h>
+//#include <omp.h>
+//#include <mpi.h>
 
 #include <vector>
 #include <deque>
@@ -29,7 +29,7 @@ using namespace h5import;
 class SynapseLoader
 {
 private:
-    omp_lock_t tokenLock_;
+    //omp_lock_t tokenLock_;
 
     std::string filename_;
     std::vector< std::string > model_params_;

@@ -72,13 +72,13 @@ void SynapseLoader::threadConnectNeurons(SynapseBuffer& synapses, uint64_t& n_co
 
 			//create entries inside of DictionaryDatum and store references to Token objects
 			std::vector<const Token*> v_ptr(model_params_.size());
-			omp_set_lock(&tokenLock_);
+			//omp_set_lock(&tokenLock_);
 			for (int i=2; i<model_params_.size(); i++) {
 				def< double >( d, model_params_[i], 0.0  );
 				const Token& token_ref = d->lookup2( model_params_[i] );
 				v_ptr[i] = &token_ref;
 			}
-			omp_unset_lock(&tokenLock_);
+			//omp_unset_lock(&tokenLock_);
 
 			//only connect neurons for stride 0
 			int stride_c=0;
@@ -111,9 +111,9 @@ void SynapseLoader::threadConnectNeurons(SynapseBuffer& synapses, uint64_t& n_co
 					std::cout << "ERROR" << std::endl;
 				}
 			}
-			omp_set_lock(&tokenLock_);
+			//omp_set_lock(&tokenLock_);
 		}  // lock closing braket to serialize object destroying
-		omp_unset_lock(&tokenLock_);
+		//omp_unset_lock(&tokenLock_);
 	
 		n_conSynapses_sum += n_conSynapses_tmp;
 	}
@@ -157,8 +157,8 @@ SynapseLoader::CommunicateSynapses( SynapseBuffer& synapses )
 		sendcounts[ synapses[ i ].node_id_ ] += entriesadded;
 	}
 
-	MPI_Alltoall(
-	sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD );
+	//MPI_Alltoall(
+	//sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD );
 
 	rdispls[ 0 ] = 0;
 	sdispls[ 0 ] = 0;
@@ -174,15 +174,15 @@ SynapseLoader::CommunicateSynapses( SynapseBuffer& synapses )
 	// allocate recv buffer
 	mpi_buffer<int> recvbuf( rdispls[ num_processes ], true );
 
-	MPI_Alltoallv( send_buffer.begin(),
-	sendcounts,
-	sdispls,
-	MPI_INT,
-	recvbuf.begin(),
-	recvcounts,
-	rdispls,
-	MPI_INT,
-	MPI_COMM_WORLD );
+	//MPI_Alltoallv( send_buffer.begin(),
+	//sendcounts,
+	//sdispls,
+	//MPI_INT,
+	//recvbuf.begin(),
+	//recvcounts,
+	//rdispls,
+	//MPI_INT,
+	//MPI_COMM_WORLD );
 
 	// make sure that enough entries are allocaed in list
 	synapses.resize( recv_synpases_count );
@@ -269,7 +269,7 @@ SynapseLoader::SynapseLoader(const DictionaryDatum& din)
 : stride_(1)//, kernel_(nest::kernel().vp_manager.get_num_threads())
 {  
 	//init lock token
-	omp_init_lock(&tokenLock_);
+	//omp_init_lock(&tokenLock_);
 
 	//parse input parameters
 	set_status(din);
@@ -277,7 +277,7 @@ SynapseLoader::SynapseLoader(const DictionaryDatum& din)
 
 SynapseLoader::~SynapseLoader()
 {
-	omp_destroy_lock(&tokenLock_);
+	//omp_destroy_lock(&tokenLock_);
 }
 
 void SynapseLoader::execute(DictionaryDatum& dout)

@@ -22,8 +22,8 @@ using namespace h5import;
           transfersize_ ( transfersize ),
           num_compound_ ( datasets.size() )
   {
-    MPI_Comm_size( MPI_COMM_WORLD, &num_processes_ );
-    MPI_Comm_rank( MPI_COMM_WORLD, &rank_ );
+    //MPI_Comm_size( MPI_COMM_WORLD, &num_processes_ );
+    //MPI_Comm_rank( MPI_COMM_WORLD, &rank_ );
 
     dataset_ptr_ = new H5Dataset( *this, "syn" );
 
@@ -86,7 +86,7 @@ using namespace h5import;
          H5Sclose( dataspace_id );
        }
        // broadcast entries to all nodes
-       MPI_Bcast( &neuronLinks_[ 0 ], count * sizeof( NeuronLink ), MPI_CHAR, 0, MPI_COMM_WORLD );
+       //MPI_Bcast( &neuronLinks_[ 0 ], count * sizeof( NeuronLink ), MPI_CHAR, 0, MPI_COMM_WORLD );
 
        // try to reduce memory consumption
        // could be moved to reading only a subset per rank

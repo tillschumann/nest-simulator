@@ -807,7 +807,7 @@ void NestModule::H5ConnectionTll_DFunction::execute(SLIInterpreter *i) const
 
   //nest::kernel().vp_manager.set_num_threads( n_threads );
   //nest::kernel().num_threads_changed_reset();
-  omp_set_num_threads(n_threads);
+  //omp_set_num_threads(n_threads);
   SynapseLoader loader(din);
 
   DictionaryDatum dout( new Dictionary );

@@ -1,6 +1,6 @@
 //#include "nmpi.h"
 #include <map>
-#include <omp.h>
+//#include <omp.h>
 
 #include "nest_types.h"
 #include "nest_datums.h"
@@ -16,7 +16,7 @@ using namespace h5import;
 class NeuronLoader
 {
 private:
-	omp_lock_t tokenLock_;
+	//omp_lock_t tokenLock_;
 
 	NeuronBuffer neurons_;
 	kernel_combi<float> kernel_;
