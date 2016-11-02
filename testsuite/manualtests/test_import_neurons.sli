@@ -13,7 +13,7 @@ ResetKernel
 /h5param_names [(C_m) (Delta_T) (E_L) (E_EX)] def
 /neuronparam_names [(C_m) (Delta_T) (E_L) (E_ex)] def
 /cell_pos_file (import_neurons.h5) def
-<< /params_read_from_file h5param_names /file cell_pos_file /params neuronparam_names /model neuronmodel_name /subnet subnet_name >> H5NeuronCsX_D /dout Set
+<< /params_read_from_file h5param_names /file cell_pos_file /params neuronparam_names /model neuronmodel_name /subnet subnet_name >> H5RCreate_D /dout Set
 
 dout /subnet get /stim_n Set
 dout /added_gids get /neurons Set

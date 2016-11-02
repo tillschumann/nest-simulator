@@ -231,17 +231,17 @@ public:
     void execute( SLIInterpreter* ) const;
   } getconnections_Dfunction;
 
-  class H5ConnectionTll_DFunction: public SLIFunction
+  class H5RTConnect_DFunction: public SLIFunction
   {
   public:
     void execute(SLIInterpreter *) const;
-  } h5connectiontll_dfunction;
+  } h5rtconnect_dfunction;
   
-  class H5NeuronCsX_DFunction: public SLIFunction
+  class H5RCreate_DFunction: public SLIFunction
   {
   public:
     void execute(SLIInterpreter *) const;
-  } h5neuroncsx_dfunction;
+  } h5rcreate_dfunction;
   
   
   

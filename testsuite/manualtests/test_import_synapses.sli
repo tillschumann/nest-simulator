@@ -14,7 +14,7 @@ ResetKernel
 /synparam_names [(delay) (weight) (tau_rec) (tau_fac)] def
 /connection_dir (import_synapses.h5) def
 << /file connection_dir /hdf5_names hdf5param_names /params synparam_names /model synmodel_name >> /din Set
-din H5ConnectionTll_D /dout Set
+din H5RTConnect_D /dout Set
 
 /delay_offset 1.0 def
 /weight_offset 10.0 def
