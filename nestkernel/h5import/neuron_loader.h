@@ -24,6 +24,8 @@ private:
 	std::string filename_;
 	std::vector< std::string > model_param_names_;
 
+	int subnet_key_;
+
 	GIDCollectionDatum CreateSubnets(const GIDCollectionDatum& added_neurons);
 	GIDCollectionDatum CreateNeurons();
   

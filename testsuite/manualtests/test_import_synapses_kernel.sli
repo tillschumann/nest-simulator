@@ -10,39 +10,63 @@ ResetKernel
 
 /aeif_cond_exp 10000 Create
 
+%% introduce offset
+4 10000 cvgidcollection /neuronmap Set
+
 /synmodel_name /tsodyks2_synapse def
 /hdf5param_names [(delay) (weight) (TauRec) (TauFac)] def
 /synparam_names [(delay) (weight) (tau_rec) (tau_fac)] def
 /connection_dir (import_synapses.h5) def
 << /file connection_dir /hdf5_names hdf5param_names /params synparam_names /model synmodel_name >> /din Set
+
+%% integrate kernel funciton
 din /kernels [<< /name (add) /params [0. 15. 0. 0.] >> << /name (multi) /params [2. 1. 2. 1.] >>]  put_d
 
+%% integrate mapping with offset
+din /mapping neuronmap put_d
+
+%% integrate transer size
+din /synapses_per_rank 15 put_d
+
+%% execute import
 din H5ConnectionTll_D /dout Set
 
+
+%% relation of values in hdf5 dataset
 /delay_offset 1.0 def
 /weight_offset 25.0 def
-%/U_offset 100.0 def
 /tau_rec_offset 3.0 def
 /tau_fac_offset 5.0 def
 
 /tid 0.0 def
 
 %%iterate over all local neurons
-<< >> GetConnections {
+<< >> GetConnections /conns Set
+conns length /num_syns Set
+
+%% user should check values himself
+(rank=) Rank cvs join ( num_syns=) join num_syns cvs join =
+
+conns {
     dup GetStatus /conn Set
     conn /source get /sgid Set
     conn /target get /tgid Set
-    sgid tgid add 2 sub/id Set
-	%%check relation of parameters to gid
+
+    %% same relation in hdf5 file
+    %% offset of 2 because of NEST standard offset
+    %% additionall offset of 6 because of introduced offset of neuron mapping (first_neuron-1)*2 (for pre and post neuron)
+    sgid tgid add 2 sub 6 sub /id Set
+    %sgid cvs (->) join tgid cvs join ( delay:) join id delay_offset add 2 mul cvs join (==) join conn /delay get cvs join =
+         %%check relation of parameters to gid
 	{
-	   id delay_offset add 2 mul 6 ToUnitTestPrecision conn /delay get 6 ToUnitTestPrecision eq
+           id delay_offset add 2 mul 6 ToUnitTestPrecision conn /delay get 6 ToUnitTestPrecision eq
 	   id weight_offset add 6 ToUnitTestPrecision conn /weight get 6 ToUnitTestPrecision eq and
 	   id tau_rec_offset add 2 mul 6 ToUnitTestPrecision conn /tau_rec get 6 ToUnitTestPrecision eq and
 	   id tau_fac_offset add 6 ToUnitTestPrecision conn /tau_fac get 6 ToUnitTestPrecision eq and
-	} assert_or_die
+        } assert_or_die
 	
-	   %%sum up gids
-	   tid id add /tid Set
+	%%sum up gids
+	tid id add /tid Set
 } forall
 
 %%test could be more specific

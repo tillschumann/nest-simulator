@@ -76,8 +76,8 @@ void
 nest::MPIManager::init_mpi( int* argc, char** argv[] )
 {
 #ifdef HAVE_MPI
-  int init;
-  MPI_Initialized( &init );
+  int init=0;
+  //MPI_Initialized( &init );
 
   if ( init == 0 )
   {
@@ -87,7 +87,8 @@ nest::MPIManager::init_mpi( int* argc, char** argv[] )
     comm = kernel().music_manager.communicator();
 #else  /* #ifdef HAVE_MUSIC */
     int provided_thread_level;
-    MPI_Init_thread( argc, argv, MPI_THREAD_FUNNELED, &provided_thread_level );
+    MPI_Init_thread( argc, argv, MPI_THREAD_SERIALIZED, &provided_thread_level );
+    std::cout << "provided_thread_level=" << provided_thread_level << std::endl;
     comm = MPI_COMM_WORLD;
 #endif /* #ifdef HAVE_MUSIC */
   }

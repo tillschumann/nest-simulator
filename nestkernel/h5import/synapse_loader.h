@@ -41,7 +41,8 @@ private:
 
     uint32_t stride_;
     uint64_t sizelimit_;
-	uint64_t transfersize_;
+    uint64_t transfersize_;
+    bool invert_orientation_;
 
     void singleConnect( const SynapseRef& synapse, nest::index synmodel_id, nest::Node* target_node, nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses );
 
@@ -54,6 +55,8 @@ private:
 
 
     void addKernel( std::string name, TokenArray params );
+
+    void invert_orientation( SynapseBuffer& synapses );
 
 public:
   SynapseLoader(const DictionaryDatum& din);

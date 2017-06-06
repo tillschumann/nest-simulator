@@ -19,12 +19,12 @@
 #include <errno.h>
 #include <ctime>
 #include <sys/time.h>
-#include <stdio.h>
+//#include <stdio.h>
 #include <queue>
 #include <algorithm>
 
 #ifdef IS_BLUEGENE_Q
-#include <spi/include/kernel/memory.h>
+#include <mpix.h>
 #endif
 
 #define _DEBUG_MODE 1
@@ -266,7 +266,7 @@ SynapseLoader::sort( SynapseBuffer& synapses )
  * 
  */
 SynapseLoader::SynapseLoader(const DictionaryDatum& din)
-: stride_(1)//, kernel_(nest::kernel().vp_manager.get_num_threads())
+: stride_(1), invert_orientation_(false)//, kernel_(nest::kernel().vp_manager.get_num_threads())
 {  
 	//init lock token
 	omp_init_lock(&tokenLock_);
@@ -278,6 +278,16 @@ SynapseLoader::SynapseLoader(const DictionaryDatum& din)
 SynapseLoader::~SynapseLoader()
 {
 	omp_destroy_lock(&tokenLock_);
+}
+
+void SynapseLoader::invert_orientation( SynapseBuffer& synapses )
+{
+	 for ( int i = 0; i < synapses.size(); i++ ) {
+                SynapseRef s = synapses[i];
+                uint32_t source_neuron = s.source_neuron_;
+                s.source_neuron_ = s.target_neuron_;
+                s.target_neuron_ = source_neuron;
+         }
 }
 
 void SynapseLoader::execute(DictionaryDatum& dout)
@@ -299,6 +309,12 @@ void SynapseLoader::execute(DictionaryDatum& dout)
 
 	std::queue< SynapseBuffer* > synapse_queue;
 
+	long long sleep_hack=0;
+	//MPI_Comm pset_comm_same;
+	//MPIX_Pset_same_comm_create(&pset_comm_same);
+	int comm_same_size;
+	//MPI_Comm_size(pset_comm_same, &comm_same_size);
+
      // add all synapses into queue
      gettimeofday(&start_push, NULL);
 	#pragma omp parallel
@@ -311,7 +327,19 @@ void SynapseLoader::execute(DictionaryDatum& dout)
     			 H5View dataspace_view;
 
     			 gettimeofday(&start_load, NULL);
+
+    			 /*#pragma omp critical(sleephack)
+				 {
+					 if (sleep_hack>0) {
+						 //std::cout << "rank=" << rank << " sleep=" << sleep_hack << "milli s" << std::endl;
+						 sleep(sleep_hack/1000);
+                         usleep((sleep_hack%1000)*1000);
+						 sleep_hack = 0;
+					 }
+				 }*/
+
     			 synloader.readblock( *newone, dataspace_view );
+
     			 gettimeofday(&end_load, NULL);
 
     			 n_readSynapses += newone->size();
@@ -321,9 +349,28 @@ void SynapseLoader::execute(DictionaryDatum& dout)
     			 //spawn task
          	 	 #pragma omp task firstprivate(newone, dataspace_view)
     			 {
-    				 synloader.integrateSourceNeurons( *newone, dataspace_view );
-    				 integrateMapping(*newone);
+  				 /*
+  				 std::vector<long long> g_t_load(comm_same_size,0);
+				 #pragma omp critical(sleephackmpi)
+				  MPI_Allgather( &t_load, 1, MPI_LONG_LONG, &(g_t_load[0]), 1, MPI_LONG_LONG, pset_comm_same );
+				  long long avg = std::accumulate(g_t_load.begin(), g_t_load.end(), 0LL) / g_t_load.size();
+
+				  if (t_load < avg) {
+						 long long v =  (avg - t_load );
+								 #pragma omp critical(sleephack)
+						 sleep_hack = v;
+				  }
+				  else {
+								#pragma omp critical(sleephack)
+						 sleep_hack = 0;
+				  }*/
+
+                                 synloader.integrateSourceNeurons( *newone, dataspace_view );
+    				 if (invert_orientation_) invert_orientation(*newone);
+                                 integrateMapping(*newone);
     				 sort(*newone);
+					#pragma omp critical(CommunicateSynapses)
+                    com_status = CommunicateSynapses(*newone);
     			 }
     			 synapse_queue.push(newone);
     		 }
@@ -338,7 +385,7 @@ void SynapseLoader::execute(DictionaryDatum& dout)
 		SynapseBuffer* synapses = synapse_queue.front();
 		synapse_queue.pop();
 
-		com_status = CommunicateSynapses(*synapses);
+		//com_status = CommunicateSynapses(*synapses);
 
 		// update stats after communication
 		n_memSynapses += synapses->size();
@@ -420,6 +467,9 @@ void SynapseLoader::set_status( const DictionaryDatum& din ) {
 		const int last = nest::kernel().node_manager.size()-1;
 		mapping_ = GIDCollection( first,last );
 	}
+        if (!updateValue< bool >( din, "invert_orientation", invert_orientation_ ))
+                invert_orientation_ = false;       
+        
 
 	//lookup synapse model
 	const Name model_name = getValue<Name>(din, "model");
@@ -446,4 +496,8 @@ void SynapseLoader::addKernel( std::string name, TokenArray params )
 		kernel_.push_back< kernel_multi< double > >( params );
 	else if ( name == "srwa" )
 		kernel_.push_back< kernel_srwa< double > >( params );
+	else if ( name == "srwa_smooth")
+		kernel_.push_back< kernel_srwa_smooth< double > >( params );
+	else
+		throw BadProperty("hdf5 synapse import: kernel function name not known");
 }

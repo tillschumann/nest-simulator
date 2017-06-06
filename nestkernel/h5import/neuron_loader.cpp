@@ -18,7 +18,7 @@ NeuronLoader::NeuronLoader(const DictionaryDatum& din)
 
     //if params from file set use different parameters
     TokenArray toh5params;
-    if ( updateValue<TokenArray>( din, "params_read_from_file", toh5params ) ) {
+    if ( updateValue<TokenArray>( din, "hdf5_names", toh5params ) ) {
     	std::vector< std::string > h5params;
     	for ( int i=0; i<toh5params.size(); i++ )
 			 h5params.push_back( toh5params[ i ] );
@@ -32,10 +32,14 @@ NeuronLoader::NeuronLoader(const DictionaryDatum& din)
     neurons_.model_id_ = static_cast< nest::index >(neuron_model);
     
     std::string subnet_name = "";
+    subnet_key_ = 1;
     if (updateValue<std::string>(din, "subnet", subnet_name)) {
         neurons_.with_subnet = (subnet_name != "");
         if (neurons_.with_subnet)
             neurons_.subnet_name = subnet_name;
+
+        updateValue<long>(din, "subnet_key", subnet_key_);
+
     }
     else
     	neurons_.with_subnet = false;
@@ -56,8 +60,12 @@ void NeuronLoader::addKernel(const std::string& name, TokenArray params)
 {
 	if (name == "add")
 		kernel_.push_back< kernel_add<float> >(params);
-	if (name == "multi")
+	else if (name == "multi")
 		kernel_.push_back< kernel_multi<float> >(params);
+	else if (name == "append")
+		kernel_.push_back< kernel_append<float> >(params);
+	else
+		throw BadProperty("hdf5 synapse import: kernel function name not known");
 }
 
 void NeuronLoader::execute(DictionaryDatum& dout)
@@ -90,24 +98,15 @@ void NeuronLoader::execute(DictionaryDatum& dout)
 GIDCollectionDatum NeuronLoader::CreateSubnets(const GIDCollectionDatum& added_neurons)
 {
     //find all subnets
-	std::vector< std::vector<long> > gids;
-    std::vector< int > unique_subnets;
+	std::vector<long> gids;
 
     for (int i=0; i<neurons_.size(); i++) {
-    	if (neurons_[i].subnet_ != 0) {
-    		int index = std::distance(unique_subnets.begin(), std::find(unique_subnets.begin(), unique_subnets.end(), neurons_[i].subnet_));
-			if (index==unique_subnets.size()) {
-				unique_subnets.push_back(neurons_[i].subnet_);
-				gids.push_back(std::vector<long>());
-				index = unique_subnets.size()-1;
-			}
-			gids[index].push_back(added_neurons[i]);
-    	}
+    	if (neurons_[i].subnet_ == subnet_key_)
+    		gids.push_back(added_neurons[i]);
     }
 
-
     //only supports one subnet so far
-    return GIDCollection(TokenArray(gids[0]));
+    return GIDCollection(TokenArray(gids));
 }
 
 /*
@@ -133,9 +132,9 @@ GIDCollectionDatum NeuronLoader::CreateNeurons()
 				std::vector<float>* values = kernel_( Nnn.params_.begin(), Nnn.params_.end() );
 
 				//copy values into sli data objects
-				for (int j=0; j<model_param_names_.size(); j++) {
+				for (int j=0; j<model_param_names_.size(); j++)
 				   def< double >( d, model_param_names_[j], (*values)[j] );
-				}
+
 				//pass sli objects to neuron
 				node->set_status(d);
 			}

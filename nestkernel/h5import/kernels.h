@@ -207,6 +207,86 @@ private:
   private_vector< type_name > pv;
 };
 
+
+template < typename T >
+struct kernel_srwa_smooth : public manipulate_kernel< T >
+{
+  typedef T type_name;
+
+  type_name lower;
+  type_name upper;
+  type_name split;
+
+
+  kernel_srwa_smooth( TokenArray& boundaries )
+  {
+    assert( boundaries.size() == 2 );
+    lower = boundaries[ 0 ];
+    upper = boundaries[ 1 ];
+
+    split = (upper+lower)/2;
+  }
+
+  inline type_name sigmoid( const type_name& x )
+  {
+	  return (1. / ( 1+std::exp( -0.02*x ) ) );
+  }
+
+  std::vector< type_name >*
+  operator()( typename std::vector<type_name>::iterator begin, typename std::vector<type_name>::iterator end )
+  {
+    const int n = end-begin;
+    assert( n == 5 );
+    pv()->resize(n);
+
+    std::vector< type_name >& output = *pv();
+    std::copy(begin, end, output.begin());
+
+    const double Vprop = 0.8433734 * 1000.0;
+    const double distance = output[0] * Vprop;
+
+    if ( distance <= split )
+        output[1] *= 2.0-4.0*sigmoid(distance - lower);
+    else if ( distance > split )
+        output[1] *= -2.0+3.0*sigmoid(distance - upper);
+
+    return pv();
+  }
+
+private:
+  private_vector< type_name > pv;
+};
+
+template < typename T >
+struct kernel_append : public manipulate_kernel< T >
+{
+    typedef T type_name;
+
+  std::vector< type_name > append_;
+  int n_;
+  kernel_append( TokenArray append )
+  {
+	n_ = append.size();
+	append_.resize(n_);
+    for ( int i = 0; i < n_; i++ )
+    	append_[ i ] = append[ i ];
+
+  }
+  std::vector< type_name >*
+  operator()( typename std::vector<type_name>::iterator begin, typename std::vector<type_name>::iterator end )
+  {
+    const int n = end-begin;
+    pv()->resize(n + n_);
+    std::copy(begin, end, pv()->begin());
+    std::copy(append_.begin(), append_.end(), pv()->begin()+n);
+
+    return pv();
+  }
+
+private:
+  private_vector< type_name > pv;
+};
+
 /*template <typename T>
 struct kernel_rand : public manipulate_kernel<T> {
         std::vector<bool> rs_;
