@@ -1,4 +1,6 @@
+#ifdef HAVE_MPI
 #include <mpi.h>
+#endif
 
 #include "h5import/h5synapsefile.h"
 
@@ -22,8 +24,13 @@ using namespace h5import;
           transfersize_ ( transfersize ),
           num_compound_ ( datasets.size() )
   {
-    //MPI_Comm_size( MPI_COMM_WORLD, &num_processes_ );
-    //MPI_Comm_rank( MPI_COMM_WORLD, &rank_ );
+    #ifdef HAVE_MPI
+    MPI_Comm_size( MPI_COMM_WORLD, &num_processes_ );
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank_ );
+    #else
+    rank_=0;
+    num_processes_=1;
+    #endif
 
     dataset_ptr_ = new H5Dataset( *this, "syn" );
 
@@ -36,7 +43,7 @@ using namespace h5import;
     memtype_ = H5Tcreate( H5T_COMPOUND, sizeof( int ) + sizeof( float ) * num_compound_ );
 
     H5Tinsert( memtype_, "target", 0, H5T_NATIVE_INT );
-    for ( int i = 0; i < datasets.size(); i++ )
+    for ( size_t i = 0; i < datasets.size(); i++ )
         H5Tinsert( memtype_, datasets[ i ].c_str(), sizeof( int )+i*sizeof( float ), H5T_NATIVE_FLOAT );
 
     loadNeuronLinks();
@@ -86,8 +93,9 @@ using namespace h5import;
          H5Sclose( dataspace_id );
        }
        // broadcast entries to all nodes
-       //MPI_Bcast( &neuronLinks_[ 0 ], count * sizeof( NeuronLink ), MPI_CHAR, 0, MPI_COMM_WORLD );
-
+       #ifdef HAVE_MPI
+       MPI_Bcast( &neuronLinks_[ 0 ], count * sizeof( NeuronLink ), MPI_CHAR, 0, MPI_COMM_WORLD );
+       #endif
        // try to reduce memory consumption
        // could be moved to reading only a subset per rank
        removeNotNeededNeuronLinks();
@@ -104,7 +112,7 @@ using namespace h5import;
 
         // sort out not necessary neuron links
         // best case: reduces neuronLinks size by around 1-1/NUM_PROCESSES
-        for ( int i = 0; i < neuronLinks_.size(); i++ )
+        for ( size_t i = 0; i < neuronLinks_.size(); i++ )
         {
          // only synapses from global_offset_ to sizelimit are loaded
          if ( neuronLinks_[ i ].syn_ptr + neuronLinks_[ i ].syn_n > global_offset_ )
@@ -133,7 +141,7 @@ using namespace h5import;
     std::vector< NeuronLink >::const_iterator it_neuronLinks = neuronLinks_.begin();
     //start at first entry
     uint64_t index = view.view2dataset( 0 );
-        for ( int i = 0; i < synapses.size(); i++ ) {
+        for ( size_t i=0; i < synapses.size(); i++ ) {
             index = view.view2dataset( i );
             while ( it_neuronLinks < neuronLinks_.end() ) {
                 if ( index >= ( it_neuronLinks->syn_ptr + it_neuronLinks->syn_n ) )

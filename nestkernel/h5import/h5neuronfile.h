@@ -39,7 +39,7 @@ public:
       H5Dread (dset.id(), H5T_NATIVE_INT, memspace_id, H5S_ALL, H5P_DEFAULT, &buffer_int[0]);
       H5Sclose (memspace_id);
       
-      for (int j=0;j<numberOfNeurons;j++)
+      for (size_t j=0;j<numberOfNeurons;j++)
           neurons.setSubnet(j,buffer_int[j]);
   }
   
@@ -59,12 +59,12 @@ public:
     hsize_t count  = numberOfNeurons; 
     
     
-    int num_processes = nest::kernel().mpi_manager.get_num_processes();
-    int rank = nest::kernel().mpi_manager.get_rank();
+    size_t num_processes = nest::kernel().mpi_manager.get_num_processes();
+    size_t rank = nest::kernel().mpi_manager.get_rank();
     
     
     //NEST neuron id mapping
-    int64_t first_neuron = (rank%num_processes)-(mod_offset%num_processes);
+    size_t first_neuron = (rank%num_processes)-(mod_offset%num_processes);
     if (first_neuron<0)
       first_neuron += num_processes;
     
@@ -86,13 +86,13 @@ public:
     
     //only parameters for local nodes are needed
     std::vector< float > buffer_flt(local_count);
-    for (int i=0; i< dataset_names.size(); i++) {
+    for ( size_t i=0; i< dataset_names.size(); i++) {
     	H5Dataset dset( *this, dataset_names[i] );
       H5Dread (dset.id(), H5T_NATIVE_FLOAT, memspace_id, filespace_id, H5P_DEFAULT, &buffer_flt[0]);
       
       // hyperslab cannot be used, because neurons object can contain different datatypes than floats!!
-      int j_local=0;
-      for (int j=first_neuron;j<numberOfNeurons;j+=num_processes) {
+      size_t j_local=0;
+      for ( size_t j=first_neuron;j<numberOfNeurons;j+=num_processes) {
     	  assert((j*dataset_names.size()+i)<neurons.neuron_parameters_.size());
     	  neurons.neuron_parameters_[j*dataset_names.size()+i] = buffer_flt[j_local];
     	  j_local++;

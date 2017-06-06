@@ -19,8 +19,6 @@
  *  along with NEST.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#include <mpi.h>
-
 #include "nestmodule.h"
 
 // C++ includes:
@@ -218,7 +216,7 @@ NestModule::SetStatus_gdFunction::execute( SLIInterpreter* i ) const
   // Network::set_status() performs entry access checks for each
   // target and throws UnaccessedDictionaryEntry where necessary
 
-  for (int i=0; i<gids.size(); i++) {
+  for (size_t i=0; i<gids.size(); i++) {
 	  if ( gids[i] == 0 )
 	  {
 		set_kernel_status( dict );
@@ -795,27 +793,19 @@ NestModule::Disconnect_g_g_D_DFunction::execute( SLIInterpreter* i ) const
 */
 void NestModule::H5RTConnect_DFunction::execute(SLIInterpreter *i) const
 {
-  #ifdef SCOREP_COMPILE
-  SCOREP_USER_REGION( "syn_import_module", SCOREP_USER_REGION_TYPE_FUNCTION )
-  #endif 
-
   i->assert_stack_load(1);
-  
   const DictionaryDatum din = getValue< DictionaryDatum >( i->OStack.pick( 0 ) );
+  
+  #ifdef _OPENMP
+  const thread n_threads = nest::kernel().vp_manager.get_num_threads();
+  omp_set_num_threads(n_threads);
+  #endif  
 
-  const int n_threads = nest::kernel().vp_manager.get_num_threads();
-
-  //nest::kernel().vp_manager.set_num_threads( n_threads );
-  //nest::kernel().num_threads_changed_reset();
-  //omp_set_num_threads(n_threads);
   SynapseLoader loader(din);
 
   DictionaryDatum dout( new Dictionary );
   loader.execute(dout);
   
-  //omp_set_dynamic(false);
-  //omp_set_num_threads(tmp_num_threads);*/
-
   i->OStack.pop(1);
   i->OStack.push( dout );
   i->EStack.pop();
@@ -1807,6 +1797,7 @@ NestModule::init( SLIInterpreter* i )
   i->createcommand( "cva_C", &cva_cfunction );
 
   i->createcommand( "Simulate_d", &simulatefunction );
+
   i->createcommand( "CopyModel_l_l_D", &copymodel_l_l_Dfunction );
   i->createcommand( "SetDefaults_l_D", &setdefaults_l_Dfunction );
   i->createcommand( "GetDefaults_l", &getdefaults_lfunction );

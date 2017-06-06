@@ -120,7 +120,7 @@ struct SynapseRef
     buf[i++] = target_neuron_;
     buf[i++] = node_id_;
 
-    for ( int j = 0; j < params_.size(); j++ )
+    for ( size_t j = 0; j < params_.size(); j++ )
       buf[i++] = *reinterpret_cast< int* >( &params_[ j ] ) ;
 
     return i-begin_i;
@@ -136,7 +136,7 @@ struct SynapseRef
     target_neuron_ = buf[i++];
     node_id_ = buf[i++];
 
-    for ( int j = 0; j < params_.size(); j++ )
+    for ( size_t j = 0; j < params_.size(); j++ )
       params_[ j ] = *reinterpret_cast< float* >( &buf[i++] );
   }
 

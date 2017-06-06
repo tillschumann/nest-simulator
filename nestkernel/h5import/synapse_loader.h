@@ -1,5 +1,9 @@
-//#include <omp.h>
-//#include <mpi.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
 
 #include <vector>
 #include <deque>
@@ -29,7 +33,33 @@ using namespace h5import;
 class SynapseLoader
 {
 private:
-    //omp_lock_t tokenLock_;
+    class lock_guard
+    {   
+	#ifdef _OPENMP
+        omp_lock_t tokenLock_;
+	#endif	
+    public:
+	lock_guard() {
+		#ifdef _OPENMP
+		omp_init_lock(&tokenLock_);
+		#endif
+	}
+	~lock_guard() {
+		#ifdef _OPENMP
+		omp_destroy_lock(&tokenLock_);
+		#endif
+	}
+	inline void lock() {
+		#ifdef _OPENMP
+		omp_set_lock(&tokenLock_);
+		#endif
+	};
+	inline void unlock() {
+		#ifdef _OPENMP
+		omp_unset_lock(&tokenLock_);
+		#endif
+	};	
+    };
 
     std::string filename_;
     std::vector< std::string > model_params_;
@@ -46,10 +76,12 @@ private:
     void singleConnect( const SynapseRef& synapse, nest::index synmodel_id, nest::Node* target_node, nest::thread target_thread, DictionaryDatum& d ,std::vector<const Token*> v_ptr, uint64_t& n_conSynapses );
 
     void threadConnectNeurons( SynapseBuffer& synapses, uint64_t& n_conSynapses );
-
+    
+    #ifdef HAVE_MPI
     CommunicateSynapses_Status CommunicateSynapses( SynapseBuffer& synapses );
-
+    #endif
     void sort( SynapseBuffer& synapses );
+
     void integrateMapping( SynapseBuffer& synapses );
 
 

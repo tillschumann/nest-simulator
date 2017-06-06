@@ -58,15 +58,12 @@ struct kernel_combi
 {
   typedef T type_name;
   std::vector< manipulate_kernel< type_name >* > kernels_;
-  kernel_combi( )
-  {
-    //manipulate_kernel< type_name >* k = new manipulate_kernel< type_name >( );
-    //kernels_.push_back( k );
-  }
+  kernel_combi()
+  {}
 
   ~kernel_combi()
   {
-    for ( int i = 0; i < kernels_.size(); i++ )
+    for ( size_t i = 0; i < kernels_.size(); i++ )
       delete kernels_[ i ];
   }
 
@@ -84,7 +81,7 @@ struct kernel_combi
       pv()->resize(end-begin);
       std::copy(begin, end, pv()->begin());
       std::vector<type_name>* result_vector = pv();
-      for ( int i = 0; i < kernels_.size(); i++ ) {
+      for ( size_t i = 0; i < kernels_.size(); i++ ) {
           result_vector = ( *kernels_[ i ] )( result_vector->begin(), result_vector->end());
       }
       return result_vector;
@@ -94,17 +91,14 @@ struct kernel_combi
   std::vector<type_name>*
   operator()( Tin* begin, Tin* end )
   {
-	  std::vector<type_name>* result_vector = pv();
-	  result_vector->resize(end-begin);
+      std::vector<type_name>* result_vector = pv();
+      result_vector->resize(end-begin);
 
       std::copy(begin, end, result_vector->begin());
 
-
-      for ( int i = 0; i < kernels_.size(); i++ ) {
+      for ( size_t i = 0; i < kernels_.size(); i++ ) {
           result_vector = ( *kernels_[ i ] )( result_vector->begin(), result_vector->end());
       }
-
-
       return result_vector;
   }
 
@@ -115,19 +109,19 @@ private:
 template < typename T >
 struct kernel_multi : public manipulate_kernel< T >
 {
-    typedef T type_name;
+  typedef T type_name;
 
   std::vector< type_name > multis_;
   kernel_multi( TokenArray multis )
   {
-    for ( int i = 0; i < multis.size(); i++ )
+    for ( size_t i = 0; i < multis.size(); i++ )
       multis_.push_back( multis[ i ] );
   }
 
   std::vector< type_name >*
   operator()( typename std::vector<type_name>::iterator begin, typename std::vector<type_name>::iterator end )
   {
-    const int n = end-begin;
+    const size_t n = end-begin;
     assert( n == multis_.size() );
     pv()->resize(n);
 
@@ -142,18 +136,18 @@ private:
 template < typename T >
 struct kernel_add : public manipulate_kernel< T >
 {
-    typedef T type_name;
+  typedef T type_name;
 
   std::vector< type_name > adds_;
   kernel_add( TokenArray adds )
   {
-    for ( int i = 0; i < adds.size(); i++ )
+    for ( size_t i = 0; i < adds.size(); i++ )
       adds_.push_back( adds[ i ] );
   }
   std::vector< type_name >*
   operator()( typename std::vector<type_name>::iterator begin, typename std::vector<type_name>::iterator end )
   {
-    const int n = end-begin;
+    const size_t n = end-begin;
     assert( n == adds_.size() );
     pv()->resize(n);
 
@@ -186,7 +180,7 @@ struct kernel_srwa : public manipulate_kernel< T >
   std::vector< type_name >*
   operator()( typename std::vector<type_name>::iterator begin, typename std::vector<type_name>::iterator end )
   {
-    const int n = end-begin;
+    const size_t n = end-begin;
     assert( n == 5 );
     pv()->resize(n);
 

@@ -5,8 +5,6 @@
 
 #include "nest_types.h"
 
-//#include "communicator.h"
-
 #ifndef NESTNODENEURON_CLASS
 #define NESTNODENEURON_CLASS
 
@@ -42,7 +40,7 @@ public:
 		assert( (idx*num_parameters_+1) <= neuron_parameters_.size());
 		NeuronObj neuron(subsets_[idx]);
 		neuron.params_.resize( num_parameters_ );
-		for (int i=0; i<num_parameters_; i++)
+		for ( size_t i=0; i<num_parameters_; i++)
 			neuron.params_[i] = neuron_parameters_[idx*num_parameters_+i];
 		return neuron;
 	};

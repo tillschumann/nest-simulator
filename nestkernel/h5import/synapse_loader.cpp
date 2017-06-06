@@ -60,6 +60,7 @@ void SynapseLoader::threadConnectNeurons(SynapseBuffer& synapses, uint64_t& n_co
 	const int num_processes = nest::kernel().mpi_manager.get_num_processes();
 	const int num_vp = nest::kernel().vp_manager.get_num_virtual_processes();
 	uint64_t n_conSynapses_sum=0;
+	lock_guard lg;	
 
 	#pragma omp parallel default(shared) reduction(+:n_conSynapses_sum)
 	{
@@ -72,13 +73,13 @@ void SynapseLoader::threadConnectNeurons(SynapseBuffer& synapses, uint64_t& n_co
 
 			//create entries inside of DictionaryDatum and store references to Token objects
 			std::vector<const Token*> v_ptr(model_params_.size());
-			//omp_set_lock(&tokenLock_);
+			lg.lock();
 			for (int i=2; i<model_params_.size(); i++) {
 				def< double >( d, model_params_[i], 0.0  );
 				const Token& token_ref = d->lookup2( model_params_[i] );
 				v_ptr[i] = &token_ref;
 			}
-			//omp_unset_lock(&tokenLock_);
+			lg.unlock();
 
 			//only connect neurons for stride 0
 			int stride_c=0;
@@ -111,15 +112,16 @@ void SynapseLoader::threadConnectNeurons(SynapseBuffer& synapses, uint64_t& n_co
 					std::cout << "ERROR" << std::endl;
 				}
 			}
-			//omp_set_lock(&tokenLock_);
+			lg.lock();
 		}  // lock closing braket to serialize object destroying
-		//omp_unset_lock(&tokenLock_);
+		lg.unlock();	
 	
 		n_conSynapses_sum += n_conSynapses_tmp;
 	}
 	n_conSynapses += n_conSynapses_sum;
 }
 
+#ifdef HAVE_MPI
 /**
  *  Communicate Synpases between the nodes
  *  Aftewards all synapses are on their target nodes
@@ -127,7 +129,10 @@ void SynapseLoader::threadConnectNeurons(SynapseBuffer& synapses, uint64_t& n_co
 CommunicateSynapses_Status
 SynapseLoader::CommunicateSynapses( SynapseBuffer& synapses )
 {
-	uint32_t num_processes = kernel().mpi_manager.get_num_processes();
+	if ( nest::kernel().mpi_manager.get_num_processes() == 1 )
+		return NOCOM;
+
+        uint32_t num_processes = kernel().mpi_manager.get_num_processes();
 
 	int sendcounts[ num_processes ], recvcounts[ num_processes ],
 	rdispls[ num_processes + 1 ], sdispls[ num_processes + 1 ];
@@ -157,8 +162,8 @@ SynapseLoader::CommunicateSynapses( SynapseBuffer& synapses )
 		sendcounts[ synapses[ i ].node_id_ ] += entriesadded;
 	}
 
-	//MPI_Alltoall(
-	//sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD );
+	MPI_Alltoall(
+	sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD );
 
 	rdispls[ 0 ] = 0;
 	sdispls[ 0 ] = 0;
@@ -174,15 +179,15 @@ SynapseLoader::CommunicateSynapses( SynapseBuffer& synapses )
 	// allocate recv buffer
 	mpi_buffer<int> recvbuf( rdispls[ num_processes ], true );
 
-	//MPI_Alltoallv( send_buffer.begin(),
-	//sendcounts,
-	//sdispls,
-	//MPI_INT,
-	//recvbuf.begin(),
-	//recvcounts,
-	//rdispls,
-	//MPI_INT,
-	//MPI_COMM_WORLD );
+	MPI_Alltoallv( send_buffer.begin(),
+	sendcounts,
+	sdispls,
+	MPI_INT,
+	recvbuf.begin(),
+	recvcounts,
+	rdispls,
+	MPI_INT,
+	MPI_COMM_WORLD );
 
 	// make sure that enough entries are allocaed in list
 	synapses.resize( recv_synpases_count );
@@ -203,6 +208,7 @@ SynapseLoader::CommunicateSynapses( SynapseBuffer& synapses )
 	else
 		return NOCOM;
 }
+#endif //HAVE_MPI
 
 void SynapseLoader::integrateMapping( SynapseBuffer& synapses )
 {
@@ -224,7 +230,7 @@ inline bool first_less( const intpair& l, const intpair& r ) { return l.first < 
 void
 SynapseLoader::sort( SynapseBuffer& synapses )
 {
-    if ( synapses.size() > 1 )
+    if ( ( nest::kernel().mpi_manager.get_num_processes() > 1 ) && ( synapses.size() > 1 ) )
     {
         // arg sort
         std::vector< intpair > v_idx( synapses.size() );
@@ -266,19 +272,14 @@ SynapseLoader::sort( SynapseBuffer& synapses )
  * 
  */
 SynapseLoader::SynapseLoader(const DictionaryDatum& din)
-: stride_(1)//, kernel_(nest::kernel().vp_manager.get_num_threads())
+: stride_(1)
 {  
-	//init lock token
-	//omp_init_lock(&tokenLock_);
-
 	//parse input parameters
 	set_status(din);
 }
 
 SynapseLoader::~SynapseLoader()
-{
-	//omp_destroy_lock(&tokenLock_);
-}
+{}
 
 void SynapseLoader::execute(DictionaryDatum& dout)
 {
@@ -323,7 +324,7 @@ void SynapseLoader::execute(DictionaryDatum& dout)
     			 {
     				 synloader.integrateSourceNeurons( *newone, dataspace_view );
     				 integrateMapping(*newone);
-    				 sort(*newone);
+				 sort(*newone);
     			 }
     			 synapse_queue.push(newone);
     		 }
@@ -338,8 +339,10 @@ void SynapseLoader::execute(DictionaryDatum& dout)
 		SynapseBuffer* synapses = synapse_queue.front();
 		synapse_queue.pop();
 
+		#ifdef HAVE_MPI
 		com_status = CommunicateSynapses(*synapses);
-
+		#endif
+	
 		// update stats after communication
 		n_memSynapses += synapses->size();
 
@@ -391,9 +394,9 @@ void SynapseLoader::set_status( const DictionaryDatum& din ) {
 		throw BadProperty("second synapse parameter has to be weight");
 
 
-	if (!updateValue< long >( din, names::synapses_per_rank, transfersize_ ))
+	if (!updateValue< long >( din, "synapses_per_rank", transfersize_ ))
 		transfersize_ = 524288;
-	if (!updateValue< long >( din, names::last_synapse, sizelimit_ ))
+	if (!updateValue< long >( din, "last_synapse", sizelimit_ ))
 		sizelimit_ = -1;
 	//set stride if set, if not stride is 1
         if (!updateValue<long>(din, "stride", stride_))
@@ -404,7 +407,7 @@ void SynapseLoader::set_status( const DictionaryDatum& din ) {
 
 	TokenArray hdf5_names;
 	//if set use different names for synapse model and hdf5 dataset columns
-	if (updateValue< TokenArray >( din, names::hdf5_names, hdf5_names)) {
+	if (updateValue< TokenArray >( din, "hdf5_params", hdf5_names)) {
 	  for (int i=0; i<hdf5_names.size(); i++) {
 		  h5comp_params_.push_back(hdf5_names[i]);
 		}

@@ -241,10 +241,7 @@ public:
   {
   public:
     void execute(SLIInterpreter *) const;
-  } h5rcreate_dfunction;
-  
-  
-  
+  } h5rcreate_dfunction;  
   
   class Starthpctoolkit_Function: public SLIFunction
   {
@@ -257,7 +254,6 @@ public:
   public:
     void execute(SLIInterpreter *) const;
   } stophpctoolkit_function;
-  
 
   class SimulateFunction : public SLIFunction
   {

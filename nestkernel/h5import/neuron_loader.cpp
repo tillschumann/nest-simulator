@@ -13,14 +13,14 @@ NeuronLoader::NeuronLoader(const DictionaryDatum& din)
 {
     filename_ = getValue< std::string >(din, "file");
     TokenArray param_names = getValue<TokenArray>(din, "params");
-    for (int i=0; i<param_names.size(); i++)
+    for ( size_t i=0; i<param_names.size(); i++)
         model_param_names_.push_back(param_names[i]);
 
     //if params from file set use different parameters
     TokenArray toh5params;
     if ( updateValue<TokenArray>( din, "params_read_from_file", toh5params ) ) {
     	std::vector< std::string > h5params;
-    	for ( int i=0; i<toh5params.size(); i++ )
+    	for ( size_t i=0; i<toh5params.size(); i++ )
 			 h5params.push_back( toh5params[ i ] );
     	neurons_.setParameters( h5params );
     }
@@ -43,7 +43,7 @@ NeuronLoader::NeuronLoader(const DictionaryDatum& din)
     //add kernels
     ArrayDatum kernels;
     if (updateValue<ArrayDatum>(din, "kernels", kernels)) {
-        for (int i=0; i< kernels.size(); i++) {
+        for ( size_t i=0; i< kernels.size(); i++) {
             DictionaryDatum kd = getValue< DictionaryDatum >( kernels[i] );
             const std::string kernel_name = getValue< std::string >( kd, "name" );
             const TokenArray kernel_params = getValue< TokenArray >( kd, "params" );
@@ -62,9 +62,6 @@ void NeuronLoader::addKernel(const std::string& name, TokenArray params)
 
 void NeuronLoader::execute(DictionaryDatum& dout)
 {
-    int rank = nest::kernel().mpi_manager.get_rank();
-    int size = nest::kernel().mpi_manager.get_num_processes();
-
     H5NeuronFile cellLoader( filename_ );
 
     const  uint64_t non= cellLoader.getNumberOfCells(neurons_.parameter_names[0]);
@@ -93,9 +90,9 @@ GIDCollectionDatum NeuronLoader::CreateSubnets(const GIDCollectionDatum& added_n
 	std::vector< std::vector<long> > gids;
     std::vector< int > unique_subnets;
 
-    for (int i=0; i<neurons_.size(); i++) {
+    for ( size_t i=0; i<neurons_.size(); i++) {
     	if (neurons_[i].subnet_ != 0) {
-    		int index = std::distance(unique_subnets.begin(), std::find(unique_subnets.begin(), unique_subnets.end(), neurons_[i].subnet_));
+    		size_t index = std::distance(unique_subnets.begin(), std::find(unique_subnets.begin(), unique_subnets.end(), neurons_[i].subnet_));
 			if (index==unique_subnets.size()) {
 				unique_subnets.push_back(neurons_[i].subnet_);
 				gids.push_back(std::vector<long>());
@@ -106,7 +103,7 @@ GIDCollectionDatum NeuronLoader::CreateSubnets(const GIDCollectionDatum& added_n
     }
 
 
-    //only supports one subnet so far
+    //only supports one collection so far
     return GIDCollection(TokenArray(gids[0]));
 }
 
@@ -115,7 +112,7 @@ GIDCollectionDatum NeuronLoader::CreateSubnets(const GIDCollectionDatum& added_n
  */
 GIDCollectionDatum NeuronLoader::CreateNeurons()
 {
-    const long non = neurons_.size();
+    const size_t non = neurons_.size();
     const nest::index first_neuron_gid = nest::kernel().node_manager.size();
     const nest::index last_neuron_gid = nest::kernel().node_manager.add_node(neurons_.model_id_, non);
     
@@ -123,7 +120,7 @@ GIDCollectionDatum NeuronLoader::CreateNeurons()
     
     //set parameters of created neurons
     //ids of neurons are continously even though they might be in different subnets
-    for (int i=0;i<non;i++) {
+    for ( size_t i=0; i<non; i++ ) {
     	const int gid = added_neurons[i];
         if (nest::kernel().node_manager.is_local_gid(gid)) {
 			nest::Node* node = nest::kernel().node_manager.get_node(gid);
@@ -133,7 +130,7 @@ GIDCollectionDatum NeuronLoader::CreateNeurons()
 				std::vector<float>* values = kernel_( Nnn.params_.begin(), Nnn.params_.end() );
 
 				//copy values into sli data objects
-				for (int j=0; j<model_param_names_.size(); j++) {
+				for ( size_t j=0; j<model_param_names_.size(); j++) {
 				   def< double >( d, model_param_names_[j], (*values)[j] );
 				}
 				//pass sli objects to neuron
