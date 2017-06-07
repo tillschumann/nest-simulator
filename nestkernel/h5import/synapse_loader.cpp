@@ -354,7 +354,6 @@ void SynapseLoader::execute(DictionaryDatum& dout)
     				 if (invert_orientation_) invert_orientation(*newone);
                                  integrateMapping(*newone);
     				 sort(*newone);
-					#pragma omp critical(CommunicateSynapses)
     			 }
     			 synapse_queue.push(newone);
     		 }
