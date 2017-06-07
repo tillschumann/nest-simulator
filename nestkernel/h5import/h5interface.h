@@ -25,7 +25,21 @@ public:
 		H5Pclose( fapl_id );
 
 		gid_ = H5Gopen( file_id_, "/", H5P_DEFAULT );
-	}
+	}        
+        #ifdef HAVE_MPI
+        H5File( const std::string& path, MPI_Comm comm )
+        {
+                hid_t fapl_id = H5Pcreate( H5P_FILE_ACCESS );
+
+                MPI_Info info  = MPI_INFO_NULL;;
+                H5Pset_fapl_mpio( fapl_id, comm, info );
+                
+                file_id_ = H5Fopen( path.c_str(), H5F_ACC_RDONLY, fapl_id );
+                H5Pclose( fapl_id );
+
+                gid_ = H5Gopen( file_id_, "/", H5P_DEFAULT );
+        }
+	#endif //HAVE_MPI
 	virtual ~H5File()
 	{
 		H5Gclose( gid_ );

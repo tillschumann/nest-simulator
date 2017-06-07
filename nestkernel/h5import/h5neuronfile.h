@@ -64,7 +64,7 @@ public:
     
     
     //NEST neuron id mapping
-    size_t first_neuron = (rank%num_processes)-(mod_offset%num_processes);
+    int64_t first_neuron = (rank%num_processes)-(mod_offset%num_processes);
     if (first_neuron<0)
       first_neuron += num_processes;
     

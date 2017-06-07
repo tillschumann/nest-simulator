@@ -511,9 +511,10 @@ nest::aeif_cond_exp::update( const Time& origin,
         throw GSLSolverFailure( get_name(), status );
 
       // check for unreasonable values; we allow V_M to explode
-      if ( S_.y_[ State_::V_M ] < -1e3 || S_.y_[ State_::W ] < -1e6
+
+      /*if ( S_.y_[ State_::V_M ] < -1e3 || S_.y_[ State_::W ] < -1e6
         || S_.y_[ State_::W ] > 1e6 )
-        throw NumericalInstability( get_name() );
+        throw NumericalInstability( get_name() );*/
 
       // spikes are handled inside the while-loop
       // due to spike-driven adaptation

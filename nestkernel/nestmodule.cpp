@@ -850,7 +850,8 @@ void NestModule::Stophpctoolkit_Function::execute(SLIInterpreter *i) const
  
    optional:
    /params_read_from_file hdf5 parameter names, has to be same length as params names (list of strings)
-   /subnet group neurons by specified dataset (string)
+   /subnet mask neurons by specified dataset (string)
+   /subnet_key set mask key (int)
    /kernels use kernel functions to manipulate neuron parameters during loading (list of dicts[ contain /name and /params] )
 
    dict_out:

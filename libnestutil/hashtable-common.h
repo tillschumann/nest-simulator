@@ -42,7 +42,7 @@
 
 #include <sparseconfig.h>
 #include <assert.h>
-#include <stdio.h>
+//#include <stdio.h>
 #include <stddef.h> // for size_t
 #include <iosfwd>
 #include <stdexcept> // For length_error

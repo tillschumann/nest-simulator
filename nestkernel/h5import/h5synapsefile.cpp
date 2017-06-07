@@ -16,7 +16,7 @@ using namespace h5import;
                       const std::vector< std::string >& datasets,
                       const uint64_t& transfersize,
                       const uint64_t& limittotalsize)
-        : H5File		( path ),
+        : H5File		( path/*, MPI_COMM_WORLD*/ ),
           memtype_      ( H5I_INVALID_HID ),
           dataset_ptr_  ( NULL ),
           global_offset_( 0 ),
@@ -143,20 +143,23 @@ using namespace h5import;
     uint64_t index = view.view2dataset( 0 );
         for ( size_t i=0; i < synapses.size(); i++ ) {
             index = view.view2dataset( i );
-            while ( it_neuronLinks < neuronLinks_.end() ) {
+            bool found = false;
+            while ( !found && it_neuronLinks < neuronLinks_.end() && it_neuronLinks >= neuronLinks_.begin() ) {
                 if ( index >= ( it_neuronLinks->syn_ptr + it_neuronLinks->syn_n ) )
-                    it_neuronLinks++;
+                    ++it_neuronLinks;
                 else if ( index < it_neuronLinks->syn_ptr ) {
-                  std::cout << "ERROR:"
-                            << "index=" << index
-                            << "\tsyn_ptr=" << it_neuronLinks->syn_ptr << std::endl;
+                    --it_neuronLinks;
                   break;
                 }
                 else {
                   synapses[ i ].source_neuron_ = it_neuronLinks->id;
-                  break;
+                  found = true;
                 }
             }
+            if (!found)
+              std::cout << "ERROR:"
+                        << "index=" << index
+                        << "\tsyn_ptr=" << it_neuronLinks->syn_ptr << std::endl;
         }
     }
 
@@ -200,8 +203,9 @@ using namespace h5import;
 
       synapses.resize( dataspace_view.count[ 0 ] );
 
-      // setup collective read operation
       hid_t dxpl_id = H5Pcreate( H5P_DATASET_XFER );
+      // setup collective read operation
+      //H5Pset_dxpl_mpio( dxpl_id, H5FD_MPIO_COLLECTIVE );  
 
       H5Dread( dataset_ptr_->id(),
                memtype_,
